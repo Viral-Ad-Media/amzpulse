@@ -6,7 +6,8 @@ export default defineConfig(({ mode }) => {
   // Load env file based on `mode` in the current working directory.
   // Set the third parameter to '' to load all env regardless of the `VITE_` prefix.
   const env = loadEnv(mode, '.', '');
-  const apiBase = env.VITE_API_BASE || 'http://localhost:3001';
+  const apiBaseFromEnv = env.VITE_API_BASE || env.API_BASE || '';
+  const apiBase = apiBaseFromEnv || 'http://localhost:3001';
   let apiTarget = apiBase;
   try {
     const parsed = new URL(apiBase);
@@ -28,7 +29,9 @@ export default defineConfig(({ mode }) => {
     },
     define: {
       // This allows the app to access the API_KEY set in Netlify Environment Variables
-      'process.env.API_KEY': JSON.stringify(env.API_KEY)
+      'process.env.API_KEY': JSON.stringify(env.API_KEY),
+      // Also surface API base even if the user forgot the VITE_ prefix (we fill __APP_API_BASE__)
+      __APP_API_BASE__: JSON.stringify(env.VITE_API_BASE ? env.VITE_API_BASE.replace(/\/$/, '') : apiBaseFromEnv.replace(/\/$/, ''))
     }
   };
 });

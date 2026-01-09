@@ -1,9 +1,32 @@
+declare const __APP_API_BASE__: string | undefined;
+
+const trimmed = (value: string | undefined | null) => (value || '').trim().replace(/\/$/, '');
+
+const hasConfiguredBase = Boolean(trimmed(import.meta.env.VITE_API_BASE as string | undefined) || trimmed(__APP_API_BASE__));
+
 const resolveApiBase = () => {
-  const envBase = (import.meta.env.VITE_API_BASE as string | undefined)?.trim();
-  if (envBase) return envBase.replace(/\/$/, '');
+  const envBase = trimmed((import.meta.env.VITE_API_BASE as string | undefined) || __APP_API_BASE__);
+  if (envBase) return envBase;
+
+  // Prefer localhost during dev if nothing is configured, otherwise fall back to site origin.
+  if (import.meta.env.DEV) return 'http://localhost:3001';
   if (typeof window !== 'undefined' && window.location?.origin) {
-    return window.location.origin;
+    const origin = window.location.origin.replace(/\/$/, '');
+    // Helpful warning when deploying to static hosts without a backend.
+    try {
+      const host = new URL(origin).hostname;
+      if (!hasConfiguredBase && /(?:netlify\.app|github\.io|vercel\.app)$/i.test(host)) {
+        console.warn(
+          `[apiClient] No VITE_API_BASE or API_BASE set; falling back to site origin (${origin}). ` +
+            'Configure an API base to avoid hitting the static host.'
+        );
+      }
+    } catch {
+      // Ignore URL parse issues and just return origin.
+    }
+    return origin;
   }
+
   return 'http://localhost:3001';
 };
 
@@ -26,12 +49,28 @@ const buildHeaders = (extra?: Record<string, string>) => {
   return headers;
 };
 
+const buildErrorMessage = (status: number, rawText: string, fallbackMsg: string) => {
+  const text = (rawText || '').trim();
+  const looksHtml = text.startsWith('<');
+  const snippet = looksHtml ? '' : text.slice(0, 240);
+  const baseHint = hasConfiguredBase ? '' : ' (API base not configured; set VITE_API_BASE or API_BASE for deployments)';
+  const statusPrefix = status ? `[${status}] ` : '';
+  return `${statusPrefix}${snippet || fallbackMsg}${baseHint}`;
+};
+
 const handle = async (resp: Response, fallbackMsg: string) => {
+  const body = await resp.text().catch(() => '');
+
   if (!resp.ok) {
-    const text = await resp.text();
-    throw new Error(text || fallbackMsg);
+    throw new Error(buildErrorMessage(resp.status, body, fallbackMsg));
   }
-  return resp.json();
+
+  if (!body) return null;
+  try {
+    return JSON.parse(body);
+  } catch {
+    return body;
+  }
 };
 
 export async function analyzeBatch(asins: string[]) {
