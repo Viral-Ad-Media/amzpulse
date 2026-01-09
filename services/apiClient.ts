@@ -1,4 +1,13 @@
-export const API_BASE = (import.meta.env.VITE_API_BASE as string) || 'http://localhost:3001';
+const resolveApiBase = () => {
+  const envBase = (import.meta.env.VITE_API_BASE as string | undefined)?.trim();
+  if (envBase) return envBase.replace(/\/$/, '');
+  if (typeof window !== 'undefined' && window.location?.origin) {
+    return window.location.origin;
+  }
+  return 'http://localhost:3001';
+};
+
+export const API_BASE = resolveApiBase();
 
 let authToken: string | null = null;
 
