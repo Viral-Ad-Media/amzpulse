@@ -27,6 +27,18 @@ export default defineConfig(({ mode }) => {
         }
       }
     },
+    build: {
+      rollupOptions: {
+        output: {
+          manualChunks: {
+            react: ['react', 'react-dom'],
+            recharts: ['recharts'],
+            lucide: ['lucide-react'],
+            genai: ['@google/genai']
+          }
+        }
+      }
+    },
     define: {
       // This allows the app to access the API_KEY set in Netlify Environment Variables
       'process.env.API_KEY': JSON.stringify(env.API_KEY),

@@ -1,9 +1,9 @@
-import React, { useState, useEffect } from 'react';
-import { X, ShoppingCart, Activity, Copy, Save, RefreshCw, ShieldCheck, TrendingUp, Calculator, Heart, Download, ExternalLink, Truck, Package, Box, Warehouse, AlertOctagon, Flame, Calendar } from 'lucide-react';
+import React, { Suspense, lazy, useEffect, useState } from 'react';
+import { X, ShoppingCart, Activity, Copy, Save, RefreshCw, ShieldCheck, TrendingUp, Calculator, Heart, Download, ExternalLink, Truck, Package, Box, Warehouse, AlertOctagon, Flame, Calendar, Loader2 } from 'lucide-react';
 import { Product, AnalysisResult } from '../types';
-import { analyzeProductSellPotential } from '../services/geminiService';
-import TrendChart from './TrendChart';
 import { fetchProduct as apiFetchProduct } from '../services/apiClient';
+
+const TrendChart = lazy(() => import('./TrendChart'));
 
 interface ProductAnalysisProps {
   product: Product;
@@ -60,10 +60,17 @@ const ProductAnalysis: React.FC<ProductAnalysisProps> = ({ product, onClose, isS
 
   const handleAnalysis = async () => {
     setLoading(true);
-    const stats = buyCost > 0 ? { buyCost, profit, roi } : undefined;
-    const result = await analyzeProductSellPotential(product, stats);
-    setAnalysis(result);
-    setLoading(false);
+    try {
+      const stats = buyCost > 0 ? { buyCost, profit, roi } : undefined;
+      const { analyzeProductSellPotential } = await import('../services/geminiService');
+      const result = await analyzeProductSellPotential(product, stats);
+      setAnalysis(result);
+    } catch (error) {
+      console.error('Analysis failed:', error);
+      setAnalysis(null);
+    } finally {
+      setLoading(false);
+    }
   };
 
   const copyToClipboard = (text: string) => {
@@ -384,7 +391,16 @@ const ProductAnalysis: React.FC<ProductAnalysisProps> = ({ product, onClose, isS
             {/* HISTORY TAB */}
             {activeTab === 'history' && (
                 <div className="h-[400px]">
-                    <TrendChart priceData={product.priceHistory} bsrData={product.bsrHistory} />
+                    <Suspense
+                      fallback={
+                        <div className="h-full flex items-center justify-center bg-slate-900 rounded-lg border border-slate-800 text-slate-400">
+                          <Loader2 className="animate-spin mr-2" size={16} />
+                          Loading chart...
+                        </div>
+                      }
+                    >
+                      <TrendChart priceData={product.priceHistory} bsrData={product.bsrHistory} />
+                    </Suspense>
                     <div className="mt-4 text-center text-xs text-slate-500">
                         Showing 90-day history. Upgrade to Pro for 365-day data.
                     </div>

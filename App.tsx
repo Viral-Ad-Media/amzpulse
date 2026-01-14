@@ -1,11 +1,9 @@
-import React, { useState, useEffect } from 'react';
+import React, { Suspense, lazy, useEffect, useState } from 'react';
 import { Menu, LogIn, UserPlus, Loader2, Shield, LogOut } from 'lucide-react';
 import { Product, FilterState, ViewMode } from './types';
 import FilterBar from './components/FilterBar';
 import { ProductCard } from './components/ProductCard';
-import ProductAnalysis from './components/ProductAnalysis';
 import Sidebar from './components/Sidebar';
-import BatchAnalysis from './components/BatchAnalysis';
 import { INITIAL_PRODUCTS, generateMockProduct } from './services/mockService';
 import {
   fetchProduct as apiFetchProduct,
@@ -18,6 +16,10 @@ import {
   removeFromWatchlist,
   setAuthToken as setApiAuthToken
 } from './services/apiClient';
+
+const ProductAnalysis = lazy(() => import('./components/ProductAnalysis'));
+const BatchAnalysis = lazy(() => import('./components/BatchAnalysis'));
+const AuthModal = lazy(() => import('./components/AuthModal'));
 
 type AuthMode = 'login' | 'signup';
 
@@ -366,7 +368,16 @@ const App: React.FC = () => {
           {/* VIEW: BATCH ANALYSIS */}
           {currentView === 'batch' &&
             (canUseBatch ? (
-              <BatchAnalysis />
+              <Suspense
+                fallback={
+                  <div className="bg-slate-900 border border-slate-800 rounded-xl p-8 text-center text-slate-300">
+                    <Loader2 className="mx-auto mb-3 animate-spin" size={20} />
+                    Loading batch analysis...
+                  </div>
+                }
+              >
+                <BatchAnalysis />
+              </Suspense>
             ) : (
               <div className="bg-slate-900 border border-slate-800 rounded-xl p-8 text-center space-y-3">
                 <h3 className="text-2xl font-bold text-white mb-2">Batch Analysis requires Pro + login</h3>
@@ -419,65 +430,48 @@ const App: React.FC = () => {
 
       {/* Product Detail Modal */}
       {selectedProduct && (
-        <ProductAnalysis
-          product={selectedProduct}
-          onClose={() => setSelectedProduct(null)}
-          isSaved={savedIds.has(selectedProduct.id)}
-          onToggleSave={(id) => handleToggleSave(id, id)}
-        />
+        <Suspense
+          fallback={
+            <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4 text-slate-200">
+              <div className="bg-slate-900 border border-slate-700 rounded-xl p-6 flex items-center gap-3">
+                <Loader2 className="animate-spin" size={18} />
+                Loading product insights...
+              </div>
+            </div>
+          }
+        >
+          <ProductAnalysis
+            product={selectedProduct}
+            onClose={() => setSelectedProduct(null)}
+            isSaved={savedIds.has(selectedProduct.id)}
+            onToggleSave={(id) => handleToggleSave(id, id)}
+          />
+        </Suspense>
       )}
 
       {/* Auth Modal */}
       {showAuthModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4">
-          <div className="bg-slate-900 border border-slate-700 rounded-xl p-6 w-full max-w-md relative">
-            <button className="absolute top-3 right-3 text-slate-500 hover:text-white" onClick={() => setShowAuthModal(false)}>
-              ✕
-            </button>
-            <div className="flex justify-between items-center mb-4">
-              <h3 className="text-xl font-bold text-white">{authMode === 'login' ? 'Login' : 'Create account'}</h3>
-              <button
-                className="text-xs text-amz-accent hover:text-white"
-                onClick={() => setAuthMode(authMode === 'login' ? 'signup' : 'login')}
-              >
-                {authMode === 'login' ? 'Need an account?' : 'Have an account?'}
-              </button>
+        <Suspense
+          fallback={
+            <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4 text-slate-200">
+              <div className="bg-slate-900 border border-slate-700 rounded-xl p-6 flex items-center gap-3">
+                <Loader2 className="animate-spin" size={18} />
+                Loading auth...
+              </div>
             </div>
-            <div className="space-y-3">
-              {authMode === 'signup' && (
-                <input
-                  className="w-full bg-slate-800 border border-slate-700 rounded px-3 py-2 text-sm focus:outline-none focus:border-amz-accent"
-                  placeholder="Name"
-                  value={authForm.name}
-                  onChange={(e) => setAuthForm((f) => ({ ...f, name: e.target.value }))}
-                />
-              )}
-              <input
-                className="w-full bg-slate-800 border border-slate-700 rounded px-3 py-2 text-sm focus:outline-none focus:border-amz-accent"
-                placeholder="Email"
-                type="email"
-                value={authForm.email}
-                onChange={(e) => setAuthForm((f) => ({ ...f, email: e.target.value }))}
-              />
-              <input
-                className="w-full bg-slate-800 border border-slate-700 rounded px-3 py-2 text-sm focus:outline-none focus:border-amz-accent"
-                placeholder="Password"
-                type="password"
-                value={authForm.password}
-                onChange={(e) => setAuthForm((f) => ({ ...f, password: e.target.value }))}
-              />
-              {authError && <div className="text-sm text-red-300 bg-red-500/10 border border-red-500/30 rounded p-2">{authError}</div>}
-              <button
-                onClick={handleAuthSubmit}
-                disabled={authLoading}
-                className="w-full mt-2 bg-amz-accent text-slate-900 font-bold py-2 rounded-lg hover:bg-orange-500 disabled:opacity-60 flex items-center justify-center gap-2"
-              >
-                {authLoading && <Loader2 size={16} className="animate-spin" />}
-                {authMode === 'login' ? 'Login' : 'Sign up'}
-              </button>
-            </div>
-          </div>
-        </div>
+          }
+        >
+          <AuthModal
+            authMode={authMode}
+            setAuthMode={setAuthMode}
+            authForm={authForm}
+            setAuthForm={setAuthForm}
+            authError={authError}
+            authLoading={authLoading}
+            onClose={() => setShowAuthModal(false)}
+            onSubmit={handleAuthSubmit}
+          />
+        </Suspense>
       )}
     </div>
   );
