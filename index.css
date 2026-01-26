@@ -1,6 +1,13 @@
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
+@import "tailwindcss";
+
+@source "./**/*.{html,js,ts,tsx,jsx}";
+
+@theme {
+  --color-amz-dark: #232f3e;
+  --color-amz-light: #37475a;
+  --color-amz-accent: #ff9900;
+  --color-amz-blue: #007185;
+}
 
 :root {
   color: #f8fafc;
