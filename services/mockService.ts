@@ -89,13 +89,66 @@ export const generateMockProduct = (asinOrId: string, overrides: Partial<Product
     };
 };
 
-// Initial Data Population
-export const INITIAL_PRODUCTS: Product[] = [
-  generateMockProduct('1', { name: 'Wireless Noise Cancelling Headphones', category: 'Electronics', price: 249.99, bsr: 1542, estimatedSales: 3400, sellers: 12 }),
-  generateMockProduct('2', { name: 'Ergonomic Office Chair Mesh', category: 'Home & Kitchen', price: 189.00, bsr: 5200, estimatedSales: 850 }),
-  generateMockProduct('3', { name: 'Organic Vitamin C Serum', category: 'Beauty & Personal Care', price: 24.50, bsr: 245, estimatedSales: 12000, sellers: 45 }),
-  generateMockProduct('4', { name: 'Yoga Mat Non-Slip', category: 'Sports & Outdoors', price: 35.99, bsr: 1200, estimatedSales: 4500 }),
-  generateMockProduct('5', { name: 'LEGO Star Wars Set', category: 'Toys & Games', price: 45.00, bsr: 3200, estimatedSales: 900, isIpRisk: true }),
-  generateMockProduct('6', { name: 'Drill Driver Set', category: 'Tools & Home Improvement', price: 89.00, bsr: 2100, estimatedSales: 600 }),
-  generateMockProduct('7', { name: 'Keto Cookies', category: 'Grocery & Gourmet Food', price: 14.99, bsr: 650, estimatedSales: 6200 }),
+export const createInitialProducts = (): Product[] => [
+  generateMockProduct('starter-1', {
+    asin: 'B0AMZP0001',
+    name: 'Wireless Noise Cancelling Headphones',
+    category: 'Electronics',
+    price: 249.99,
+    bsr: 1542,
+    estimatedSales: 3400,
+    sellers: 12
+  }),
+  generateMockProduct('starter-2', {
+    asin: 'B0AMZP0002',
+    name: 'Ergonomic Office Chair Mesh',
+    category: 'Home & Kitchen',
+    price: 189.0,
+    bsr: 5200,
+    estimatedSales: 850
+  }),
+  generateMockProduct('starter-3', {
+    asin: 'B0AMZP0003',
+    name: 'Organic Vitamin C Serum',
+    category: 'Beauty & Personal Care',
+    price: 24.5,
+    bsr: 245,
+    estimatedSales: 12000,
+    sellers: 45
+  }),
+  generateMockProduct('starter-4', {
+    asin: 'B0AMZP0004',
+    name: 'Yoga Mat Non-Slip',
+    category: 'Sports & Outdoors',
+    price: 35.99,
+    bsr: 1200,
+    estimatedSales: 4500
+  }),
+  generateMockProduct('starter-5', {
+    asin: 'B0AMZP0005',
+    name: 'LEGO Star Wars Set',
+    category: 'Toys & Games',
+    price: 45.0,
+    bsr: 3200,
+    estimatedSales: 900,
+    isIpRisk: true
+  }),
+  generateMockProduct('starter-6', {
+    asin: 'B0AMZP0006',
+    name: 'Drill Driver Set',
+    category: 'Tools & Home Improvement',
+    price: 89.0,
+    bsr: 2100,
+    estimatedSales: 600
+  }),
+  generateMockProduct('starter-7', {
+    asin: 'B0AMZP0007',
+    name: 'Keto Cookies',
+    category: 'Grocery & Gourmet Food',
+    price: 14.99,
+    bsr: 650,
+    estimatedSales: 6200
+  })
 ];
+
+export const INITIAL_PRODUCTS: Product[] = createInitialProducts();

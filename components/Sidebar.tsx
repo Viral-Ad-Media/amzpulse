@@ -7,9 +7,11 @@ interface SidebarProps {
   setView: (view: ViewMode) => void;
   isOpen: boolean;
   setIsOpen: (isOpen: boolean) => void;
+  isAuthenticated?: boolean;
+  onLogout?: () => void;
 }
 
-const Sidebar: React.FC<SidebarProps> = ({ currentView, setView, isOpen, setIsOpen }) => {
+const Sidebar: React.FC<SidebarProps> = ({ currentView, setView, isOpen, setIsOpen, isAuthenticated = false, onLogout }) => {
   const menuItems = [
     { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
     { id: 'research', label: 'Research', icon: Search },
@@ -60,11 +62,19 @@ const Sidebar: React.FC<SidebarProps> = ({ currentView, setView, isOpen, setIsOp
                 })}
             </nav>
 
-            <div className="absolute bottom-0 w-full p-4 border-t border-slate-800">
-                <button className="w-full flex items-center gap-3 px-4 py-3 text-slate-500 hover:text-white text-sm font-medium">
-                    <LogOut size={18} /> Sign Out
-                </button>
-            </div>
+            {isAuthenticated && onLogout && (
+                <div className="absolute bottom-0 w-full p-4 border-t border-slate-800">
+                    <button
+                        onClick={() => {
+                            onLogout();
+                            setIsOpen(false);
+                        }}
+                        className="w-full flex items-center gap-3 px-4 py-3 text-slate-500 hover:text-white text-sm font-medium"
+                    >
+                        <LogOut size={18} /> Sign Out
+                    </button>
+                </div>
+            )}
         </div>
     </>
   );

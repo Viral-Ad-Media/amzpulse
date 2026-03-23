@@ -4,6 +4,7 @@ import { Product, AnalysisResult } from '../types';
 import { fetchProduct as apiFetchProduct } from '../services/apiClient';
 
 const TrendChart = lazy(() => import('./TrendChart'));
+type ProductAnalysisTab = 'overview' | 'calculator' | 'history' | 'risks';
 
 interface ProductAnalysisProps {
   product: Product;
@@ -16,7 +17,7 @@ const ProductAnalysis: React.FC<ProductAnalysisProps> = ({ product, onClose, isS
   // State for Analysis
   const [analysis, setAnalysis] = useState<AnalysisResult | null>(product.analysis || null);
   const [loading, setLoading] = useState(!product.analysis);
-  const [activeTab, setActiveTab] = useState<'overview' | 'calculator' | 'history' | 'risks'>('overview');
+  const [activeTab, setActiveTab] = useState<ProductAnalysisTab>('overview');
   
   // State for Calculator V2
   const [fulfillmentMode, setFulfillmentMode] = useState<'FBA' | 'FBM'>('FBA');
@@ -113,10 +114,10 @@ const ProductAnalysis: React.FC<ProductAnalysisProps> = ({ product, onClose, isS
                 { id: 'calculator', label: 'Profit & ROI', icon: Calculator },
                 { id: 'history', label: 'History', icon: Calendar },
                 { id: 'risks', label: 'Risks & Flags', icon: AlertOctagon }
-            ].map(tab => (
+            ].map((tab: { id: ProductAnalysisTab; label: string; icon: React.ComponentType<{ size?: number }> }) => (
                 <button
                     key={tab.id}
-                    onClick={() => setActiveTab(tab.id as any)}
+                    onClick={() => setActiveTab(tab.id)}
                     className={`flex-1 py-3 text-sm font-bold border-b-2 transition-colors flex items-center justify-center gap-2 ${activeTab === tab.id ? 'border-amz-accent text-white bg-slate-800/50' : 'border-transparent text-slate-500 hover:text-slate-300'}`}
                 >
                     <tab.icon size={16} /> {tab.label}

@@ -4,6 +4,60 @@ const trimmed = (value: string | undefined | null) => (value || '').trim().repla
 
 const hasConfiguredBase = Boolean(trimmed(import.meta.env.VITE_API_BASE as string | undefined) || trimmed(__APP_API_BASE__));
 
+export interface AuthUser {
+  id?: string;
+  email?: string;
+  name?: string;
+}
+
+export interface AuthResponse {
+  token: string;
+  user?: AuthUser;
+  organizationId?: string;
+  role?: string;
+  plan?: string;
+  planRenewsAt?: string | null;
+}
+
+export interface SessionProfile {
+  user?: AuthUser;
+  organizationId?: string;
+  role?: string;
+  plan?: string;
+  planRenewsAt?: string | null;
+}
+
+export interface UsageSnapshot {
+  id?: string;
+  organizationId?: string;
+  month?: string;
+  asinsAnalyzed: number;
+  batchRuns: number;
+  plan?: string;
+  planRenewsAt?: string | null;
+}
+
+export interface WatchlistItem {
+  id: string;
+  productId: string;
+  targetPrice?: number | null;
+  targetRoi?: number | null;
+  notes?: string | null;
+  product?: unknown;
+}
+
+export interface BillingPlan {
+  name: string;
+  monthlyAsinQuota: number;
+  maxBatchSize: number;
+  price: number;
+  description: string;
+}
+
+export interface CheckoutSessionResponse {
+  url: string;
+}
+
 const resolveApiBase = () => {
   const envBase = trimmed((import.meta.env.VITE_API_BASE as string | undefined) || __APP_API_BASE__);
   if (envBase) return envBase;
@@ -58,18 +112,18 @@ const buildErrorMessage = (status: number, rawText: string, fallbackMsg: string)
   return `${statusPrefix}${snippet || fallbackMsg}${baseHint}`;
 };
 
-const handle = async (resp: Response, fallbackMsg: string) => {
+const handle = async <T>(resp: Response, fallbackMsg: string): Promise<T> => {
   const body = await resp.text().catch(() => '');
 
   if (!resp.ok) {
     throw new Error(buildErrorMessage(resp.status, body, fallbackMsg));
   }
 
-  if (!body) return null;
+  if (!body) return null as T;
   try {
-    return JSON.parse(body);
+    return JSON.parse(body) as T;
   } catch {
-    return body;
+    return body as T;
   }
 };
 
@@ -95,7 +149,7 @@ export async function login(email: string, password: string) {
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ email, password })
   });
-  return handle(resp, 'Login failed');
+  return handle<AuthResponse>(resp, 'Login failed');
 }
 
 export async function register(email: string, password: string, name?: string) {
@@ -104,22 +158,22 @@ export async function register(email: string, password: string, name?: string) {
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ email, password, name })
   });
-  return handle(resp, 'Signup failed');
+  return handle<AuthResponse>(resp, 'Signup failed');
 }
 
 export async function me() {
   const resp = await fetch(`${API_BASE}/api/auth/me`, { headers: buildHeaders() });
-  return handle(resp, 'Fetch user failed');
+  return handle<SessionProfile>(resp, 'Fetch user failed');
 }
 
 export async function getUsage() {
   const resp = await fetch(`${API_BASE}/api/billing/usage`, { headers: buildHeaders() });
-  return handle(resp, 'Fetch usage failed');
+  return handle<UsageSnapshot>(resp, 'Fetch usage failed');
 }
 
 export async function getWatchlist() {
   const resp = await fetch(`${API_BASE}/api/watchlist`, { headers: buildHeaders() });
-  return handle(resp, 'Fetch watchlist failed');
+  return handle<WatchlistItem[]>(resp, 'Fetch watchlist failed');
 }
 
 export async function addToWatchlist(asin: string) {
@@ -131,13 +185,23 @@ export async function addToWatchlist(asin: string) {
   return handle(resp, 'Add to watchlist failed');
 }
 
+export async function getBillingPlans() {
+  const resp = await fetch(`${API_BASE}/api/billing/plans`);
+  return handle<BillingPlan[]>(resp, 'Fetch billing plans failed');
+}
+
+export async function createCheckoutSession() {
+  const resp = await fetch(`${API_BASE}/api/billing/checkout`, {
+    method: 'POST',
+    headers: buildHeaders()
+  });
+  return handle<CheckoutSessionResponse>(resp, 'Create checkout session failed');
+}
+
 export async function removeFromWatchlist(idOrAsin: string) {
   const resp = await fetch(`${API_BASE}/api/watchlist/${encodeURIComponent(idOrAsin)}`, {
     method: 'DELETE',
     headers: buildHeaders()
   });
-  if (!resp.ok) {
-    const text = await resp.text();
-    throw new Error(text || 'Remove from watchlist failed');
-  }
+  await handle<null>(resp, 'Remove from watchlist failed');
 }

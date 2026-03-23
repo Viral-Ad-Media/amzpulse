@@ -16,6 +16,21 @@ During local development `/api/*` requests are proxied to `http://localhost:3001
 
 If `VITE_API_BASE` is not provided, the app will call the same origin it was served from.
 
+## Public routes
+
+The frontend now includes a static public shell alongside the workspace. Core routes are available via hash routing so static hosts do not need server-side rewrites:
+
+- `#/`
+- `#/features`
+- `#/pricing`
+- `#/about`
+- `#/contact`
+- `#/privacy`
+- `#/terms`
+- `#/billing/success`
+- `#/billing/cancel`
+- `#/app`
+
 ### Netlify / static hosts: avoid 404s
 - Set `VITE_API_BASE` (or `API_BASE`) in your site environment variables to your backend host.
 - On static hosts like Netlify/GitHub Pages there is no `/api/*` handler, so missing `VITE_API_BASE` will surface as the Netlify 404 HTML page when you try to log in or sign up.
@@ -23,6 +38,7 @@ If `VITE_API_BASE` is not provided, the app will call the same origin it was ser
 
 ### Pairing with `amzpulse-server`
 - Backend env: set `FRONTEND_URL` in `amzpulse-server/.env` to include your frontend origins (e.g., `http://localhost:5173,https://viraladmedia.github.io`).
+- Checkout note: if `FRONTEND_URL` contains multiple comma-separated entries, the backend uses the first one for Stripe success/cancel redirects.
 - Frontend env: set `VITE_API_BASE` (or `API_BASE`) to the running backend (default local: `http://localhost:3001`).
 - Start backend: `cd ../amzpulse-server && npm install && npm run dev` (or `npm run build && npm start` in production).
 - Start frontend: `npm run dev` here; Vite proxies `/api/*` to port 3001 in dev, and the env base is baked into the production build.

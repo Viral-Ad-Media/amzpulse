@@ -73,6 +73,41 @@ const BatchAnalysis: React.FC = () => {
       setInput('');
   }
 
+  const exportCsv = () => {
+    if (results.length === 0) return;
+
+    const rows = [
+      ['ASIN', 'Title', 'Category', 'Price', 'BSR', 'Estimated Sales', 'Risk', 'AI Grade', 'Suggested Action'],
+      ...results.map((product) => [
+        product.asin,
+        product.name,
+        product.category,
+        product.price.toFixed(2),
+        String(product.bsr),
+        String(product.estimatedSales),
+        product.isIpRisk || product.isHazmat ? 'Risk' : 'OK',
+        product.analysis?.grade || '',
+        product.analysis?.suggestedAction || ''
+      ])
+    ];
+
+    const csv = rows
+      .map((row) =>
+        row
+          .map((value) => `"${String(value).replace(/"/g, '""')}"`)
+          .join(',')
+      )
+      .join('\n');
+
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `amzpulse-batch-${new Date().toISOString().slice(0, 10)}.csv`;
+    link.click();
+    URL.revokeObjectURL(url);
+  };
+
   return (
     <div className="space-y-6">
       <div className="flex justify-between items-center">
@@ -112,7 +147,7 @@ const BatchAnalysis: React.FC = () => {
         <div className="bg-slate-900 border border-slate-800 rounded-xl overflow-hidden">
             <div className="p-4 border-b border-slate-700 flex justify-between items-center bg-slate-800/50">
                 <span className="text-slate-400 text-sm">Processed {results.length} ASINs</span>
-                <button className="text-amz-accent hover:text-white text-sm flex items-center gap-2">
+                <button onClick={exportCsv} className="text-amz-accent hover:text-white text-sm flex items-center gap-2">
                     <Download size={16} /> Export CSV
                 </button>
             </div>
@@ -136,7 +171,9 @@ const BatchAnalysis: React.FC = () => {
                                 <tr key={idx} className="border-b border-slate-800 hover:bg-slate-800/50 transition-colors">
                                     <td className="p-4">
                                         <div className="flex items-center gap-3">
-                                            <div className="w-10 h-10 bg-white rounded p-1 shrink-0"><img src={p.image} className="w-full h-full object-contain" /></div>
+                                            <div className="w-10 h-10 bg-white rounded p-1 shrink-0">
+                                                <img src={p.image} className="w-full h-full object-contain" loading="lazy" decoding="async" alt={p.name} />
+                                            </div>
                                             <div>
                                                 <div className="text-white font-medium line-clamp-1 w-48" title={p.name}>{p.name}</div>
                                                 <div className="text-slate-500 text-xs font-mono">{p.asin}</div>

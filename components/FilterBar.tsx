@@ -9,26 +9,43 @@ interface FilterBarProps {
 }
 
 const FilterBar: React.FC<FilterBarProps> = ({ filters, setFilters }) => {
+  const numericFields = new Set(['minPrice', 'maxPrice', 'minRoi', 'maxBSR']);
+
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     const { name, value } = e.target;
+    const nextValue = numericFields.has(name) ? Number(value) || 0 : value;
     
     if (name === 'category') {
         // Reset subCategory when main category changes
         setFilters(prev => ({
             ...prev,
-            category: value,
+            category: nextValue as string,
             subCategory: ''
         }));
     } else {
         setFilters(prev => ({
             ...prev,
-            [name]: value
+            [name]: nextValue
         }));
     }
   };
 
+  const resetFilters = () => {
+    setFilters({
+      category: '',
+      subCategory: '',
+      minPrice: 0,
+      maxPrice: 0,
+      minRoi: 0,
+      maxBSR: 0,
+      search: '',
+      season: ''
+    });
+  };
+
   // Safely retrieve subcategories, defaulting to empty array if category is invalid/missing
   const subCategories = filters.category ? (AMAZON_TAXONOMY[filters.category] || []) : [];
+  const seasons = ['Evergreen', 'Q1', 'Q2', 'Q3', 'Q4', 'Summer', 'Back to School'];
 
   return (
     <div className="sticky top-0 z-30 bg-slate-900/80 backdrop-blur-md border-b border-slate-800 py-4 px-4 md:px-8 mb-6">
@@ -111,6 +128,48 @@ const FilterBar: React.FC<FilterBarProps> = ({ filters, setFilters }) => {
                 />
             </div>
             </div>
+        </div>
+
+        <div className="flex flex-col md:flex-row gap-3 md:items-center md:justify-between">
+          <div className="flex flex-wrap items-center gap-3">
+            <div className="flex items-center gap-2 bg-slate-800 rounded-lg px-3 py-2 border border-slate-700">
+              <span className="text-slate-400 text-xs">BSR ≤</span>
+              <input
+                type="number"
+                name="maxBSR"
+                placeholder="25000"
+                value={filters.maxBSR || ''}
+                onChange={handleInputChange}
+                className="w-24 bg-transparent text-white text-sm focus:outline-none border-b border-slate-600 focus:border-amz-accent text-center"
+              />
+            </div>
+
+            <div className="relative min-w-[170px]">
+              <select
+                name="season"
+                value={filters.season || ''}
+                onChange={handleInputChange}
+                className="w-full appearance-none bg-slate-800 text-white border border-slate-700 hover:border-slate-600 rounded-lg px-4 py-2 pr-8 text-sm focus:outline-none focus:ring-1 focus:ring-amz-accent cursor-pointer"
+              >
+                <option value="">All Seasons</option>
+                {seasons.map((season) => (
+                  <option key={season} value={season}>
+                    {season}
+                  </option>
+                ))}
+              </select>
+              <div className="absolute right-3 top-1/2 transform -translate-y-1/2 pointer-events-none">
+                <Filter size={14} className="text-slate-400"/>
+              </div>
+            </div>
+          </div>
+
+          <button
+            onClick={resetFilters}
+            className="self-start md:self-auto rounded-lg border border-slate-700 px-3 py-2 text-sm text-slate-300 transition hover:border-slate-500 hover:text-white"
+          >
+            Reset Filters
+          </button>
         </div>
       </div>
     </div>

@@ -23,6 +23,8 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product, onClick, isSa
         <img 
           src={product.image} 
           alt={product.name} 
+          loading="lazy"
+          decoding="async"
           className="object-contain h-full w-full group-hover:scale-110 transition-transform duration-500 mix-blend-multiply"
         />
         <div className="absolute top-0 left-0 w-full p-2 flex justify-between items-start z-10">
@@ -53,6 +55,7 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product, onClick, isSa
         
         <button 
             onClick={(e) => onToggleSave(e, product.id)}
+            aria-label={isSaved ? `Remove ${product.name} from watchlist` : `Save ${product.name} to watchlist`}
             className="absolute top-2 right-2 z-20 p-2 bg-slate-100/50 hover:bg-white rounded-full transition-colors shadow-sm"
         >
             <Heart size={16} className={isSaved ? "fill-pink-500 text-pink-500" : "text-slate-600"} />
