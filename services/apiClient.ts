@@ -58,6 +58,16 @@ export interface CheckoutSessionResponse {
   url: string;
 }
 
+export interface PasswordResetRequestResponse {
+  message: string;
+  resetToken?: string;
+  resetUrl?: string;
+}
+
+export interface PasswordResetResponse {
+  message: string;
+}
+
 const resolveApiBase = () => {
   const envBase = trimmed((import.meta.env.VITE_API_BASE as string | undefined) || __APP_API_BASE__);
   if (envBase) return envBase;
@@ -69,7 +79,7 @@ const resolveApiBase = () => {
     // Helpful warning when deploying to static hosts without a backend.
     try {
       const host = new URL(origin).hostname;
-      if (!hasConfiguredBase && /(?:netlify\.app|github\.io|vercel\.app)$/i.test(host)) {
+      if (!hasConfiguredBase && /(?:github\.io|vercel\.app)$/i.test(host)) {
         console.warn(
           `[apiClient] No VITE_API_BASE or API_BASE set; falling back to site origin (${origin}). ` +
             'Configure an API base to avoid hitting the static host.'
@@ -143,6 +153,11 @@ export async function fetchProduct(asin: string) {
   return handle(resp, 'Fetch product failed');
 }
 
+export async function getFeaturedProducts() {
+  const resp = await fetch(`${API_BASE}/api/products/featured`);
+  return handle<Record<string, any>[]>(resp, 'Fetch featured products failed');
+}
+
 export async function login(email: string, password: string) {
   const resp = await fetch(`${API_BASE}/api/auth/login`, {
     method: 'POST',
@@ -196,6 +211,24 @@ export async function createCheckoutSession() {
     headers: buildHeaders()
   });
   return handle<CheckoutSessionResponse>(resp, 'Create checkout session failed');
+}
+
+export async function requestPasswordReset(email: string) {
+  const resp = await fetch(`${API_BASE}/api/auth/forgot-password`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ email })
+  });
+  return handle<PasswordResetRequestResponse>(resp, 'Forgot password failed');
+}
+
+export async function resetPassword(token: string, password: string) {
+  const resp = await fetch(`${API_BASE}/api/auth/reset-password`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ token, password })
+  });
+  return handle<PasswordResetResponse>(resp, 'Reset password failed');
 }
 
 export async function removeFromWatchlist(idOrAsin: string) {

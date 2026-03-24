@@ -15,6 +15,7 @@ import {
   Zap
 } from 'lucide-react';
 import { BillingPlan, getBillingPlans, setAuthToken as setApiAuthToken } from './services/apiClient';
+import PasswordRecoveryPanel from './components/PasswordRecoveryPanel';
 
 const AppWorkspace = lazy(() => import('./components/AppWorkspace'));
 
@@ -24,6 +25,8 @@ type RouteId =
   | 'pricing'
   | 'about'
   | 'contact'
+  | 'forgot-password'
+  | 'reset-password'
   | 'privacy'
   | 'terms'
   | 'billing-success'
@@ -66,6 +69,8 @@ const ROUTES: Record<string, RouteId> = {
   '/pricing': 'pricing',
   '/about': 'about',
   '/contact': 'contact',
+  '/forgot-password': 'forgot-password',
+  '/reset-password': 'reset-password',
   '/privacy': 'privacy',
   '/terms': 'terms',
   '/billing/success': 'billing-success',
@@ -93,6 +98,14 @@ const ROUTE_META: Record<RouteId, RouteMeta> = {
   contact: {
     title: 'Contact | AmzPulse',
     description: 'Find the right path for support, billing questions, and implementation conversations.'
+  },
+  'forgot-password': {
+    title: 'Forgot Password | AmzPulse',
+    description: 'Generate a password reset link for your AmzPulse account.'
+  },
+  'reset-password': {
+    title: 'Reset Password | AmzPulse',
+    description: 'Set a new password for your AmzPulse account using a reset token.'
   },
   privacy: {
     title: 'Privacy Policy | AmzPulse',
@@ -144,6 +157,12 @@ const readPathFromLocation = () => {
   return normalizePath(stripBasePath(window.location.pathname || '/'));
 };
 
+const readHashQueryParam = (key: string) => {
+  const hash = window.location.hash.replace(/^#/, '');
+  const query = hash.includes('?') ? hash.slice(hash.indexOf('?') + 1) : '';
+  return new URLSearchParams(query).get(key) || '';
+};
+
 const hashHref = (path: string) => `#${normalizePath(path)}`;
 
 const routeCardBase =
@@ -191,6 +210,7 @@ const App: React.FC = () => {
   }, []);
 
   const routeId = ROUTES[routePath] || 'not-found';
+  const resetTokenFromLocation = typeof window === 'undefined' ? '' : readHashQueryParam('token');
 
   useEffect(() => {
     setMobileNavOpen(false);
@@ -608,6 +628,14 @@ const App: React.FC = () => {
           </div>
         </section>
       );
+    }
+
+    if (routeId === 'forgot-password') {
+      return <PasswordRecoveryPanel mode="request" loginHref={hashHref('/app')} />;
+    }
+
+    if (routeId === 'reset-password') {
+      return <PasswordRecoveryPanel mode="reset" initialToken={resetTokenFromLocation} loginHref={hashHref('/app')} />;
     }
 
     if (routeId === 'privacy') {

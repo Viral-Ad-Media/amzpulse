@@ -4,11 +4,11 @@ import { FilterState, Product, ViewMode } from '../types';
 import FilterBar from './FilterBar';
 import { ProductCard } from './ProductCard';
 import Sidebar from './Sidebar';
-import { createInitialProducts, generateMockProduct } from '../services/mockService';
 import {
   addToWatchlist,
   createCheckoutSession,
   fetchProduct as apiFetchProduct,
+  getFeaturedProducts as apiGetFeaturedProducts,
   getUsage,
   getWatchlist,
   login,
@@ -69,7 +69,7 @@ const isAsinInput = (value: string) => value.startsWith('B0') && value.length ==
 const AppWorkspace: React.FC = () => {
   const [currentView, setView] = useState<ViewMode>('dashboard');
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
-  const [products, setProducts] = useState<Product[]>(() => createInitialProducts());
+  const [products, setProducts] = useState<Product[]>([]);
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
   const [savedIds, setSavedIds] = useState<Set<string>>(new Set());
   const [watchlistMap, setWatchlistMap] = useState<Record<string, string>>({});
@@ -95,6 +95,7 @@ const AppWorkspace: React.FC = () => {
     season: ''
   });
   const [isFetchingProduct, setIsFetchingProduct] = useState(false);
+  const [isLoadingFeatured, setIsLoadingFeatured] = useState(false);
   const [productError, setProductError] = useState<string | null>(null);
 
   const deferredSearch = useDeferredValue(filters.search.trim());
@@ -109,6 +110,38 @@ const AppWorkspace: React.FC = () => {
     setToken(stored);
     setApiAuthToken(stored);
     void bootstrapSession();
+  }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    const loadFeaturedProducts = async () => {
+      try {
+        setIsLoadingFeatured(true);
+        const featured = await apiGetFeaturedProducts();
+        if (cancelled) return;
+
+        if (Array.isArray(featured) && featured.length > 0) {
+          setProducts(featured.map((item) => normalizeFetchedProduct(item, item.asin || item.id || '')));
+        } else {
+          setProducts([]);
+        }
+      } catch (err) {
+        if (cancelled) return;
+        console.warn('Featured product sync failed', err);
+        setProductError((err as Error)?.message || 'Unable to load featured Amazon products');
+      } finally {
+        if (!cancelled) {
+          setIsLoadingFeatured(false);
+        }
+      }
+    };
+
+    void loadFeaturedProducts();
+
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   const bootstrapSession = async () => {
@@ -270,15 +303,8 @@ const AppWorkspace: React.FC = () => {
       } catch (err) {
         if (cancelled) return;
 
-        console.warn('Backend fetch failed, generating local mock:', err);
+        console.warn('Backend fetch failed', err);
         setProductError((err as Error)?.message || 'Failed to fetch product');
-        const fallback = generateMockProduct(deferredSearch);
-        setProducts((current) => {
-          if (current.some((product) => product.asin === fallback.asin)) {
-            return current;
-          }
-          return [fallback, ...current];
-        });
       } finally {
         if (!cancelled) {
           setIsFetchingProduct(false);
@@ -441,6 +467,13 @@ const AppWorkspace: React.FC = () => {
                 </div>
               )}
 
+              {isLoadingFeatured && (
+                <div className="mt-4 flex items-center gap-2 text-sm text-slate-400">
+                  <Loader2 size={14} className="animate-spin" />
+                  Syncing featured Amazon products...
+                </div>
+              )}
+
               {productError && (
                 <div className="mt-3 rounded-lg border border-red-500/30 bg-red-500/10 p-3 text-sm text-red-300">{productError}</div>
               )}
@@ -460,7 +493,7 @@ const AppWorkspace: React.FC = () => {
                   </div>
                 ) : (
                   <div className="rounded-2xl border border-dashed border-slate-800 bg-slate-900/50 py-20 text-center text-slate-500">
-                    No products found. Try adjusting filters or searching a new ASIN.
+                    No products found. Search a live ASIN or configure `FEATURED_ASINS` on the backend to seed the dashboard.
                   </div>
                 )}
               </div>

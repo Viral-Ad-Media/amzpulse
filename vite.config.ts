@@ -41,7 +41,7 @@ export default defineConfig(({ mode }) => {
       }
     },
     define: {
-      // This allows the app to access the API_KEY set in Netlify Environment Variables
+      // This allows the app to access the API_KEY set in deployment environment variables
       'process.env.API_KEY': JSON.stringify(env.API_KEY),
       // Also surface API base even if the user forgot the VITE_ prefix (we fill __APP_API_BASE__)
       __APP_API_BASE__: JSON.stringify(env.VITE_API_BASE ? env.VITE_API_BASE.replace(/\/$/, '') : apiBaseFromEnv.replace(/\/$/, ''))
