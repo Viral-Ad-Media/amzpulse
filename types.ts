@@ -30,6 +30,8 @@ export interface Product {
   category: string;
   subCategory?: string;
   price: number;
+  priceDisplay?: string;
+  currency?: string;
   image: string;
   rating: number;
   reviews: number;
@@ -43,6 +45,7 @@ export interface Product {
   asin: string;
   bsr: number;
   estimatedSales: number;
+  isEstimatedSales?: boolean;
   
   // Fees Breakdown
   referralFee: number;
@@ -58,6 +61,7 @@ export interface Product {
   isHazmat: boolean;
   isIpRisk: boolean;
   isOversized: boolean;
+  riskDataAvailable?: boolean;
 
   // Seasonality (New)
   seasonalityTags: ('Q1' | 'Q2' | 'Q3' | 'Q4' | 'Evergreen' | 'Summer' | 'Back to School')[];
@@ -66,6 +70,13 @@ export interface Product {
   supplierUrl?: string;
   targetRoi?: number;
   notes?: string;
+
+  // Provider metadata
+  detailUrl?: string;
+  dataSource?: string;
+  lastSyncedAt?: string;
+  availability?: string;
+  fulfillmentChannel?: string;
 
   analysis?: AnalysisResult;
 }

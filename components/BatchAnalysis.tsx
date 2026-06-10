@@ -2,6 +2,11 @@ import React, { useState } from 'react';
 import { Play, Download, Trash2, AlertTriangle, CheckCircle } from 'lucide-react';
 import { Product } from '../types';
 import { analyzeBatch as apiAnalyzeBatch } from '../services/apiClient';
+import { normalizeExternalProducts } from '../services/productMapper';
+
+const ASIN_PATTERN = /^[A-Z0-9]{10}$/i;
+
+const formatMoney = (product: Product) => product.priceDisplay || (product.price > 0 ? `$${product.price.toFixed(2)}` : 'N/A');
 
 const BatchAnalysis: React.FC = () => {
   const [input, setInput] = useState('');
@@ -9,60 +14,28 @@ const BatchAnalysis: React.FC = () => {
   const [isProcessing, setIsProcessing] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const mapExternalToProduct = (data: any): Product => {
-    return {
-      id: data.asin || (data.id || Math.random().toString(36).slice(2)),
-      asin: data.asin || data.id || '',
-      name: data.title || data.name || 'Unknown Product',
-      brand: data.brand || 'Unknown',
-      category: data.category || 'Misc',
-      subCategory: data.subCategory || undefined,
-      price: Number(data.price || 0),
-      image: data.image || `https://picsum.photos/400/400?random=${encodeURIComponent(data.asin || data.id || Math.random())}`,
-      rating: Number(data.rating || 4.0),
-      reviews: Number(data.reviews || 0),
-      trend: Number(data.trend || 0),
-      description: data.description || '',
-      priceHistory: data.priceHistory || [],
-      bsrHistory: data.bsrHistory || [],
-      bsr: Number(data.bsr || data.rank || 0),
-      estimatedSales: Number(data.estSales || data.estimatedSales || 0),
-      referralFee: Number(data.referralFee || 0),
-      fbaFee: Number(data.fbaFee || 0),
-      storageFee: Number(data.storageFee || 0.5),
-      weight: data.weight || '',
-      dimensions: data.dimensions || '',
-      sellers: Number(data.sellers || 1),
-      isHazmat: Boolean(data.isHazmat),
-      isIpRisk: Boolean(data.isIpRisk),
-      isOversized: Boolean(data.isOversized),
-      seasonalityTags: data.seasonalityTags || ['Evergreen'],
-      supplierUrl: data.supplierUrl || undefined,
-      targetRoi: data.targetRoi || undefined,
-      notes: data.notes || undefined,
-      analysis: data.analysis || undefined
-    };
-  };
-
   const handleProcess = async () => {
     if (!input.trim()) return;
     setIsProcessing(true);
     setError(null);
 
-    const asins = input.split(/[\n,]+/).map(s => s.trim()).filter(s => s.length > 0);
+    const asins = [...new Set(input.split(/[\s,]+/).map(s => s.trim().toUpperCase()).filter(s => s.length > 0))];
+    const invalidAsins = asins.filter((asin) => !ASIN_PATTERN.test(asin));
+
+    if (invalidAsins.length > 0) {
+      setError(`Invalid ASIN format: ${invalidAsins.slice(0, 5).join(', ')}`);
+      setIsProcessing(false);
+      return;
+    }
 
     try {
       const backendResults: any[] = await apiAnalyzeBatch(asins);
-      const mapped: Product[] = backendResults.map(item => mapExternalToProduct(item));
+      const mapped = normalizeExternalProducts(backendResults);
       setResults(mapped);
     } catch (err) {
-      console.error('Batch analyze failed, using fallback list:', err);
+      console.error('Batch analyze failed:', err);
       setError((err as Error)?.message || 'Batch analyze failed');
-      // Fallback minimal mapping to keep UX responsive
-      const fallback: Product[] = asins.map(a => mapExternalToProduct({ asin: a, title: `Fallback ${a}`, price: 0, bsr: 0 }));
-      // small delay to simulate processing
-      await new Promise(r => setTimeout(r, 300));
-      setResults(fallback);
+      setResults([]);
     } finally {
       setIsProcessing(false);
     }
@@ -82,10 +55,10 @@ const BatchAnalysis: React.FC = () => {
         product.asin,
         product.name,
         product.category,
-        product.price.toFixed(2),
-        String(product.bsr),
-        String(product.estimatedSales),
-        product.isIpRisk || product.isHazmat ? 'Risk' : 'OK',
+        product.price > 0 ? product.price.toFixed(2) : '',
+        product.bsr > 0 ? String(product.bsr) : '',
+        product.estimatedSales > 0 ? String(product.estimatedSales) : '',
+        product.riskDataAvailable === false ? 'Unavailable' : product.isIpRisk || product.isHazmat ? 'Risk' : 'OK',
         product.analysis?.grade || '',
         product.analysis?.suggestedAction || ''
       ])
@@ -167,8 +140,9 @@ const BatchAnalysis: React.FC = () => {
                     <tbody className="text-sm">
                         {results.map((p, idx) => {
                             const profit = p.price - (p.price * 0.4) - p.referralFee - p.fbaFee; // Rough estimate
+                            const hasProfitInputs = p.price > 0 && (p.referralFee > 0 || p.fbaFee > 0);
                             return (
-                                <tr key={idx} className="border-b border-slate-800 hover:bg-slate-800/50 transition-colors">
+                                <tr key={p.asin || p.id || idx} className="border-b border-slate-800 hover:bg-slate-800/50 transition-colors">
                                     <td className="p-4">
                                         <div className="flex items-center gap-3">
                                             <div className="w-10 h-10 bg-white rounded p-1 shrink-0">
@@ -180,11 +154,15 @@ const BatchAnalysis: React.FC = () => {
                                             </div>
                                         </div>
                                     </td>
-                                    <td className="p-4 text-right text-white font-mono">${p.price}</td>
-                                    <td className="p-4 text-right text-slate-300 font-mono">#{p.bsr.toLocaleString()}</td>
-                                    <td className="p-4 text-right text-green-400 font-mono">{p.estimatedSales.toLocaleString()}</td>
+                                    <td className="p-4 text-right text-white font-mono">{formatMoney(p)}</td>
+                                    <td className="p-4 text-right text-slate-300 font-mono">{p.bsr > 0 ? `#${p.bsr.toLocaleString()}` : 'N/A'}</td>
+                                    <td className="p-4 text-right text-green-400 font-mono">{p.estimatedSales > 0 ? p.estimatedSales.toLocaleString() : 'N/A'}</td>
                                     <td className="p-4 text-center">
-                                        {p.isIpRisk || p.isHazmat ? (
+                                        {p.riskDataAvailable === false ? (
+                                            <span className="inline-flex items-center gap-1 text-slate-400 bg-slate-700/30 px-2 py-1 rounded text-xs font-bold border border-slate-600/40">
+                                                N/A
+                                            </span>
+                                        ) : p.isIpRisk || p.isHazmat ? (
                                             <span className="inline-flex items-center gap-1 text-red-400 bg-red-400/10 px-2 py-1 rounded text-xs font-bold border border-red-400/20">
                                                 <AlertTriangle size={12} /> RISK
                                             </span>
@@ -208,7 +186,7 @@ const BatchAnalysis: React.FC = () => {
                                     </td>
 
                                     <td className="p-4 text-right font-bold text-slate-200">
-                                        ${profit.toFixed(2)}
+                                        {hasProfitInputs ? `$${profit.toFixed(2)}` : 'N/A'}
                                     </td>
                                 </tr>
                             );

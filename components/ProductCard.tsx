@@ -11,7 +11,14 @@ interface ProductCardProps {
 
 export const ProductCard: React.FC<ProductCardProps> = ({ product, onClick, isSaved, onToggleSave }) => {
   // Check if product matches the "Golden Opportunity" criteria
-  const isRareFind = product.estimatedSales > 1000 && product.sellers <= 3;
+  const isRareFind = product.estimatedSales > 1000 && product.sellers > 0 && product.sellers <= 3;
+  const priceLabel = product.priceDisplay || (product.price > 0 ? `$${product.price.toFixed(2)}` : 'N/A');
+  const bsrLabel = product.bsr > 0 ? `#${product.bsr.toLocaleString()} BSR` : 'BSR N/A';
+  const trendLabel = product.trend !== 0 ? `${product.trend}%` : product.dataSource?.startsWith('amazon') ? 'Live' : '0%';
+  const ratingLabel = product.rating > 0 ? product.rating.toFixed(1) : 'No rating';
+  const reviewLabel = product.reviews > 0 ? `(${product.reviews.toLocaleString()})` : '';
+  const salesLabel = product.estimatedSales > 0 ? `${product.estimatedSales.toLocaleString()}/mo` : 'No sales est.';
+  const sellerLabel = product.sellers > 0 ? `${product.sellers.toLocaleString()} Offers` : 'N/A';
 
   return (
     <div 
@@ -30,7 +37,7 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product, onClick, isSa
         <div className="absolute top-0 left-0 w-full p-2 flex justify-between items-start z-10">
             <div className="flex flex-col gap-1 items-start">
                 <span className="bg-slate-900/90 backdrop-blur text-white text-[10px] font-bold px-2 py-1 rounded border border-slate-700">
-                #{product.bsr.toLocaleString()} BSR
+                {bsrLabel}
                 </span>
 
                 {product.analysis && (
@@ -48,7 +55,7 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product, onClick, isSa
             <div className="flex gap-1">
                 <div className="bg-green-500/90 backdrop-blur text-white text-[10px] font-bold px-2 py-1 rounded flex items-center gap-1 shadow-sm">
                 <TrendingUp size={10} />
-                {product.trend}%
+                {trendLabel}
                 </div>
             </div>
         </div>
@@ -86,11 +93,11 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product, onClick, isSa
             <div className="flex items-center justify-between text-xs border-b border-slate-700 pb-2">
                 <div className="flex items-center gap-1">
                     <Star size={12} className="text-yellow-500 fill-yellow-500" />
-                    <span className="text-slate-300 font-medium">{product.rating}</span>
-                    <span className="text-slate-500">({product.reviews})</span>
+                    <span className="text-slate-300 font-medium">{ratingLabel}</span>
+                    {reviewLabel && <span className="text-slate-500">{reviewLabel}</span>}
                 </div>
                 <div className={`font-medium flex items-center gap-1 ${isRareFind ? 'text-green-400 font-bold' : 'text-slate-400'}`}>
-                    <Package size={12}/> {product.estimatedSales.toLocaleString()}/mo
+                    <Package size={12}/> {salesLabel}
                 </div>
             </div>
 
@@ -98,11 +105,11 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product, onClick, isSa
             <div className="flex items-end justify-between">
                 <div>
                     <span className="text-[10px] text-slate-500 block uppercase tracking-wider font-bold">Buy Box</span>
-                    <span className="text-lg font-bold text-white">${product.price}</span>
+                    <span className="text-lg font-bold text-white">{priceLabel}</span>
                 </div>
                 <div className="text-right">
                     <span className="text-[10px] text-slate-500 block uppercase tracking-wider font-bold">Sellers</span>
-                    <span className={`text-xs font-mono ${isRareFind ? 'text-green-400 font-bold' : 'text-slate-400'}`}>{product.sellers} Offers</span>
+                    <span className={`text-xs font-mono ${isRareFind ? 'text-green-400 font-bold' : 'text-slate-400'}`}>{sellerLabel}</span>
                 </div>
             </div>
         </div>

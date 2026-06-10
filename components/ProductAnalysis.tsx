@@ -13,6 +13,9 @@ interface ProductAnalysisProps {
   onToggleSave: (id: string) => void;
 }
 
+const formatMoney = (product: Product) => product.priceDisplay || (product.price > 0 ? `$${product.price.toFixed(2)}` : 'N/A');
+const formatRank = (rank: number) => (rank > 0 ? `#${rank.toLocaleString()}` : 'N/A');
+
 const ProductAnalysis: React.FC<ProductAnalysisProps> = ({ product, onClose, isSaved, onToggleSave }) => {
   // State for Analysis
   const [analysis, setAnalysis] = useState<AnalysisResult | null>(product.analysis || null);
@@ -30,6 +33,9 @@ const ProductAnalysis: React.FC<ProductAnalysisProps> = ({ product, onClose, isS
   const [roi, setRoi] = useState<number>(0);
   const [profit, setProfit] = useState<number>(0);
   const [margin, setMargin] = useState<number>(0);
+  const riskDataUnavailable = product.riskDataAvailable === false;
+  const hasHistory = product.priceHistory.length > 0 || product.bsrHistory.length > 0;
+  const amazonUrl = product.detailUrl || `https://www.amazon.com/dp/${product.asin}`;
 
   // Calculations
   useEffect(() => {
@@ -139,11 +145,16 @@ const ProductAnalysis: React.FC<ProductAnalysisProps> = ({ product, onClose, isS
                                 <TrendingUp size={64} className="text-amz-accent"/>
                             </div>
                             <h3 className="text-slate-400 text-xs font-bold uppercase mb-2">Best Sellers Rank</h3>
-                            <div className="text-4xl font-black text-white mb-1">#{product.bsr.toLocaleString()}</div>
-                            <div className="inline-block bg-green-500/20 text-green-400 text-xs font-bold px-2 py-1 rounded">Top 1% Category</div>
+                            <div className="text-4xl font-black text-white mb-1">{formatRank(product.bsr)}</div>
+                            <div className="inline-block bg-slate-700/60 text-slate-300 text-xs font-bold px-2 py-1 rounded">
+                                {product.bsr > 0 ? 'Amazon sales rank' : 'Not provided'}
+                            </div>
                             <div className="mt-4 pt-4 border-t border-slate-700 flex justify-between items-center">
                                 <span className="text-slate-400 text-sm">Est. Sales</span>
-                                <span className="text-xl font-bold text-white">{product.estimatedSales.toLocaleString()} <span className="text-xs text-slate-500 font-normal">/mo</span></span>
+                                <span className="text-xl font-bold text-white">
+                                    {product.estimatedSales > 0 ? product.estimatedSales.toLocaleString() : 'N/A'}{' '}
+                                    {product.estimatedSales > 0 && <span className="text-xs text-slate-500 font-normal">/mo</span>}
+                                </span>
                             </div>
                          </div>
 
@@ -151,26 +162,25 @@ const ProductAnalysis: React.FC<ProductAnalysisProps> = ({ product, onClose, isS
                          <div className="bg-slate-800 rounded-xl p-5 border border-slate-700">
                              <div className="flex justify-between items-center mb-4">
                                 <h3 className="text-slate-400 text-xs font-bold uppercase">Competition Snapshot</h3>
-                                <div className={`text-xs font-bold px-2 py-1 rounded ${product.sellers > 10 ? 'bg-red-500/20 text-red-400' : 'bg-green-500/20 text-green-400'}`}>
-                                    {product.sellers > 10 ? 'High' : 'Low'} Comp
+                                <div className={`text-xs font-bold px-2 py-1 rounded ${product.sellers === 0 ? 'bg-slate-700/70 text-slate-300' : product.sellers > 10 ? 'bg-red-500/20 text-red-400' : 'bg-green-500/20 text-green-400'}`}>
+                                    {product.sellers === 0 ? 'N/A' : product.sellers > 10 ? 'High' : 'Low'} Comp
                                 </div>
                              </div>
                              <div className="space-y-3">
                                  <div className="flex justify-between text-sm">
                                      <span className="text-slate-400">Total Offers</span>
-                                     <span className="text-white font-bold">{product.sellers}</span>
+                                     <span className="text-white font-bold">{product.sellers > 0 ? product.sellers.toLocaleString() : 'N/A'}</span>
                                  </div>
                                  <div className="flex justify-between text-sm">
                                      <span className="text-slate-400">Buy Box Type</span>
-                                     <span className="text-white font-bold">FBA</span>
+                                     <span className="text-white font-bold">{product.fulfillmentChannel || 'Not provided'}</span>
                                  </div>
-                                 <div className="w-full bg-slate-700 h-1.5 rounded-full mt-2 overflow-hidden">
-                                     <div className="bg-amz-accent h-full w-[70%]" title="70% FBA"></div>
-                                 </div>
-                                 <div className="flex justify-between text-[10px] text-slate-500">
-                                     <span>FBA (Est 70%)</span>
-                                     <span>FBM (Est 30%)</span>
-                                 </div>
+                                 {product.availability && (
+                                     <div className="flex justify-between text-sm">
+                                         <span className="text-slate-400">Availability</span>
+                                         <span className="max-w-[12rem] truncate text-right text-white font-bold" title={product.availability}>{product.availability}</span>
+                                     </div>
+                                 )}
                              </div>
                          </div>
                     </div>
@@ -259,10 +269,10 @@ const ProductAnalysis: React.FC<ProductAnalysisProps> = ({ product, onClose, isS
                         </div>
                         
                         <div className="grid grid-cols-2 gap-4">
-                             <a href={`https://www.google.com/search?tbm=shop&q=${encodeURIComponent(product.name)}`} target="_blank" className="bg-slate-800 hover:bg-slate-700 border border-slate-600 rounded-lg p-3 text-center text-sm font-bold text-white transition-colors">
+                             <a href={`https://www.google.com/search?tbm=shop&q=${encodeURIComponent(product.name)}`} target="_blank" rel="noreferrer" className="bg-slate-800 hover:bg-slate-700 border border-slate-600 rounded-lg p-3 text-center text-sm font-bold text-white transition-colors">
                                 Google Shop
                              </a>
-                             <a href={`https://www.amazon.com/dp/${product.asin}`} target="_blank" className="bg-amz-accent/10 hover:bg-amz-accent/20 border border-amz-accent/50 rounded-lg p-3 text-center text-sm font-bold text-amz-accent transition-colors">
+                             <a href={amazonUrl} target="_blank" rel="noreferrer" className="bg-amz-accent/10 hover:bg-amz-accent/20 border border-amz-accent/50 rounded-lg p-3 text-center text-sm font-bold text-amz-accent transition-colors">
                                 View on Amazon
                              </a>
                         </div>
@@ -312,11 +322,11 @@ const ProductAnalysis: React.FC<ProductAnalysisProps> = ({ product, onClose, isS
 
                         {/* Breakdown */}
                         <div className="bg-slate-800 rounded-lg p-4 space-y-2 text-sm border border-slate-700">
-                             <div className="flex justify-between text-slate-400"><span>Referral Fee</span> <span>-${product.referralFee.toFixed(2)}</span></div>
+                             <div className="flex justify-between text-slate-400"><span>Referral Fee</span> <span>{product.referralFee > 0 ? `-$${product.referralFee.toFixed(2)}` : 'N/A'}</span></div>
                              {fulfillmentMode === 'FBA' && (
                                 <>
-                                    <div className="flex justify-between text-slate-400"><span>FBA Fee</span> <span>-${product.fbaFee.toFixed(2)}</span></div>
-                                    <div className="flex justify-between text-slate-400"><span>Storage (1mo)</span> <span>-${product.storageFee.toFixed(2)}</span></div>
+                                    <div className="flex justify-between text-slate-400"><span>FBA Fee</span> <span>{product.fbaFee > 0 ? `-$${product.fbaFee.toFixed(2)}` : 'N/A'}</span></div>
+                                    <div className="flex justify-between text-slate-400"><span>Storage (1mo)</span> <span>{product.storageFee > 0 ? `-$${product.storageFee.toFixed(2)}` : 'N/A'}</span></div>
                                 </>
                              )}
                              <div className="border-t border-slate-700 pt-2 flex justify-between font-bold text-slate-200">
@@ -350,25 +360,25 @@ const ProductAnalysis: React.FC<ProductAnalysisProps> = ({ product, onClose, isS
             {activeTab === 'risks' && (
                 <div className="space-y-6">
                     <div className="grid md:grid-cols-3 gap-4">
-                        <div className={`p-4 rounded-xl border ${product.isIpRisk ? 'bg-red-500/10 border-red-500 text-red-400' : 'bg-green-500/10 border-green-500 text-green-400'}`}>
+                        <div className={`p-4 rounded-xl border ${riskDataUnavailable ? 'bg-slate-800 border-slate-700 text-slate-400' : product.isIpRisk ? 'bg-red-500/10 border-red-500 text-red-400' : 'bg-green-500/10 border-green-500 text-green-400'}`}>
                             <div className="flex items-center gap-2 font-bold mb-2">
                                 <ShieldCheck size={20} /> IP Complaints
                             </div>
-                            <p className="text-sm opacity-80">{product.isIpRisk ? 'Warning: Brand known for IP claims.' : 'Low Risk: No recent complaints detected.'}</p>
+                            <p className="text-sm opacity-80">{riskDataUnavailable ? 'Not provided by the current Amazon provider.' : product.isIpRisk ? 'Warning: Brand known for IP claims.' : 'Low Risk: No recent complaints detected.'}</p>
                         </div>
 
-                        <div className={`p-4 rounded-xl border ${product.isHazmat ? 'bg-orange-500/10 border-orange-500 text-orange-400' : 'bg-slate-800 border-slate-700 text-slate-400'}`}>
+                        <div className={`p-4 rounded-xl border ${riskDataUnavailable ? 'bg-slate-800 border-slate-700 text-slate-400' : product.isHazmat ? 'bg-orange-500/10 border-orange-500 text-orange-400' : 'bg-slate-800 border-slate-700 text-slate-400'}`}>
                             <div className="flex items-center gap-2 font-bold mb-2">
                                 <Flame size={20} /> Hazmat Status
                             </div>
-                            <p className="text-sm opacity-80">{product.isHazmat ? 'Warning: Product flagged as Hazmat.' : 'Standard Product.'}</p>
+                            <p className="text-sm opacity-80">{riskDataUnavailable ? 'Not provided by the current Amazon provider.' : product.isHazmat ? 'Warning: Product flagged as Hazmat.' : 'Standard Product.'}</p>
                         </div>
 
-                        <div className={`p-4 rounded-xl border ${product.isOversized ? 'bg-yellow-500/10 border-yellow-500 text-yellow-400' : 'bg-slate-800 border-slate-700 text-slate-400'}`}>
+                        <div className={`p-4 rounded-xl border ${riskDataUnavailable ? 'bg-slate-800 border-slate-700 text-slate-400' : product.isOversized ? 'bg-yellow-500/10 border-yellow-500 text-yellow-400' : 'bg-slate-800 border-slate-700 text-slate-400'}`}>
                             <div className="flex items-center gap-2 font-bold mb-2">
                                 <Box size={20} /> Size Tier
                             </div>
-                            <p className="text-sm opacity-80">{product.isOversized ? 'Oversized: Higher FBA Fees.' : 'Standard Size.'}</p>
+                            <p className="text-sm opacity-80">{riskDataUnavailable ? 'Not provided by the current Amazon provider.' : product.isOversized ? 'Oversized: Higher FBA Fees.' : 'Standard Size.'}</p>
                         </div>
                     </div>
 
@@ -376,14 +386,20 @@ const ProductAnalysis: React.FC<ProductAnalysisProps> = ({ product, onClose, isS
                     <div className="bg-slate-800 rounded-xl p-6 border border-slate-700">
                         <h3 className="text-white font-bold mb-4 flex items-center gap-2"><Calendar size={18}/> Seasonality</h3>
                         <div className="flex gap-2 mb-4">
-                            {product.seasonalityTags?.map(tag => (
+                            {product.seasonalityTags.length > 0 ? product.seasonalityTags.map(tag => (
                                 <span key={tag} className="bg-blue-500/20 text-blue-400 px-3 py-1 rounded-full text-xs font-bold border border-blue-500/30">
                                     {tag}
                                 </span>
-                            ))}
+                            )) : (
+                                <span className="bg-slate-700/60 text-slate-300 px-3 py-1 rounded-full text-xs font-bold border border-slate-600">
+                                    Not provided
+                                </span>
+                            )}
                         </div>
                         <p className="text-slate-400 text-sm">
-                            Historical data suggests this product performs best during {product.seasonalityTags?.join(', ')}. Ensure stock is sent in 30 days prior.
+                            {product.seasonalityTags.length > 0
+                              ? `Historical data suggests this product performs best during ${product.seasonalityTags.join(', ')}. Ensure stock is sent in 30 days prior.`
+                              : 'Seasonality is not included in the current Amazon product response.'}
                         </p>
                     </div>
                 </div>
@@ -392,18 +408,24 @@ const ProductAnalysis: React.FC<ProductAnalysisProps> = ({ product, onClose, isS
             {/* HISTORY TAB */}
             {activeTab === 'history' && (
                 <div className="h-[400px]">
-                    <Suspense
-                      fallback={
-                        <div className="h-full flex items-center justify-center bg-slate-900 rounded-lg border border-slate-800 text-slate-400">
-                          <Loader2 className="animate-spin mr-2" size={16} />
-                          Loading chart...
+                    {hasHistory ? (
+                        <Suspense
+                          fallback={
+                            <div className="h-full flex items-center justify-center bg-slate-900 rounded-lg border border-slate-800 text-slate-400">
+                              <Loader2 className="animate-spin mr-2" size={16} />
+                              Loading chart...
+                            </div>
+                          }
+                        >
+                          <TrendChart priceData={product.priceHistory} bsrData={product.bsrHistory} />
+                        </Suspense>
+                    ) : (
+                        <div className="h-full flex items-center justify-center bg-slate-900 rounded-lg border border-slate-800 text-center text-slate-400">
+                            Historical price and rank data is not included in the current Amazon response.
                         </div>
-                      }
-                    >
-                      <TrendChart priceData={product.priceHistory} bsrData={product.bsrHistory} />
-                    </Suspense>
+                    )}
                     <div className="mt-4 text-center text-xs text-slate-500">
-                        Showing 90-day history. Upgrade to Pro for 365-day data.
+                        {hasHistory ? 'Showing available history from the connected provider.' : 'Connect a provider with history support to populate this chart.'}
                     </div>
                 </div>
             )}

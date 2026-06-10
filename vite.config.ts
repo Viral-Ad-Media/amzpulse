@@ -1,11 +1,13 @@
 import { defineConfig, loadEnv } from 'vite';
 import react from '@vitejs/plugin-react';
+import { handleAmazonApiRequest } from './server/amazonProvider.mjs';
 
 // https://vitejs.dev/config/
 export default defineConfig(({ mode }) => {
   // Load env file based on `mode` in the current working directory.
   // Set the third parameter to '' to load all env regardless of the `VITE_` prefix.
   const env = loadEnv(mode, '.', '');
+  const runtimeEnv = { ...process.env, ...env };
   const apiBaseFromEnv = env.VITE_API_BASE || env.API_BASE || '';
   const apiBase = apiBaseFromEnv || 'http://localhost:3001';
   let apiTarget = apiBase;
@@ -18,7 +20,22 @@ export default defineConfig(({ mode }) => {
 
   return {
     base: './',
-    plugins: [react()],
+    plugins: [
+      react(),
+      {
+        name: 'amzpulse-amazon-api',
+        configureServer(server) {
+          server.middlewares.use(async (req, res, next) => {
+            try {
+              const handled = await handleAmazonApiRequest(req, res, runtimeEnv);
+              if (!handled) next();
+            } catch (error) {
+              next(error as Error);
+            }
+          });
+        }
+      }
+    ],
     server: {
       proxy: {
         '/api': {
@@ -32,7 +49,7 @@ export default defineConfig(({ mode }) => {
       rollupOptions: {
         output: {
           manualChunks: {
-            react: ['react', 'react-dom'],
+            react: ['react', 'react/jsx-runtime', 'react-dom/client'],
             recharts: ['recharts'],
             lucide: ['lucide-react'],
             genai: ['@google/genai']

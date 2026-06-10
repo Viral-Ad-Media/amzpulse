@@ -1,9 +1,10 @@
-import React, { Suspense, lazy, useDeferredValue, useEffect, useState } from 'react';
+import React, { Suspense, lazy, useDeferredValue, useEffect, useMemo, useState } from 'react';
 import { CreditCard, Loader2, LogIn, LogOut, Menu, Shield, Sparkles, UserPlus } from 'lucide-react';
 import { FilterState, Product, ViewMode } from '../types';
 import FilterBar from './FilterBar';
 import { ProductCard } from './ProductCard';
 import Sidebar from './Sidebar';
+import { normalizeExternalProduct, normalizeExternalProducts } from '../services/productMapper';
 import {
   addToWatchlist,
   createCheckoutSession,
@@ -31,40 +32,7 @@ const PLAN_LIMITS = {
   pro: { monthlyAsinQuota: 5000, maxBatchSize: 100 }
 };
 
-const normalizeFetchedProduct = (data: Record<string, any>, fallbackAsin: string): Product => ({
-  id: data.asin || fallbackAsin,
-  asin: data.asin || fallbackAsin,
-  name: data.title || `Product ${fallbackAsin}`,
-  brand: data.brand || 'Unknown',
-  category: data.category || 'Misc',
-  subCategory: data.subCategory || undefined,
-  price: Number(data.price || 0),
-  image: data.image || `https://picsum.photos/400/400?random=${fallbackAsin}`,
-  rating: Number(data.rating || 4.0),
-  reviews: Number(data.reviews || 0),
-  trend: Number(data.trend || 0),
-  description: data.description || '',
-  priceHistory: data.priceHistory || [],
-  bsrHistory: data.bsrHistory || [],
-  bsr: Number(data.bsr || 0),
-  estimatedSales: Number(data.estSales || data.estimatedSales || 0),
-  referralFee: Number(data.referralFee || 0),
-  fbaFee: Number(data.fbaFee || 0),
-  storageFee: Number(data.storageFee || 0.5),
-  weight: data.weight || '',
-  dimensions: data.dimensions || '',
-  sellers: Number(data.sellers || 1),
-  isHazmat: Boolean(data.isHazmat),
-  isIpRisk: Boolean(data.isIpRisk),
-  isOversized: Boolean(data.isOversized),
-  seasonalityTags: data.seasonalityTags || ['Evergreen'],
-  supplierUrl: data.supplierUrl || undefined,
-  targetRoi: data.targetRoi || undefined,
-  notes: data.notes || undefined,
-  analysis: data.analysis || undefined
-});
-
-const isAsinInput = (value: string) => value.startsWith('B0') && value.length === 10;
+const isAsinInput = (value: string) => /^[A-Z0-9]{10}$/i.test(value);
 
 const AppWorkspace: React.FC = () => {
   const [currentView, setView] = useState<ViewMode>('dashboard');
@@ -122,7 +90,7 @@ const AppWorkspace: React.FC = () => {
         if (cancelled) return;
 
         if (Array.isArray(featured) && featured.length > 0) {
-          setProducts(featured.map((item) => normalizeFetchedProduct(item, item.asin || item.id || '')));
+          setProducts(normalizeExternalProducts(featured));
         } else {
           setProducts([]);
         }
@@ -281,8 +249,9 @@ const AppWorkspace: React.FC = () => {
   };
 
   useEffect(() => {
-    if (!isAsinInput(deferredSearch)) return;
-    if (products.some((product) => product.asin === deferredSearch)) return;
+    const searchAsin = deferredSearch.toUpperCase();
+    if (!isAsinInput(searchAsin)) return;
+    if (products.some((product) => product.asin.toUpperCase() === searchAsin)) return;
 
     let cancelled = false;
 
@@ -290,10 +259,10 @@ const AppWorkspace: React.FC = () => {
       try {
         setIsFetchingProduct(true);
         setProductError(null);
-        const data = await apiFetchProduct(deferredSearch);
+        const data = await apiFetchProduct(searchAsin);
         if (cancelled) return;
 
-        const nextProduct = normalizeFetchedProduct(data, deferredSearch);
+        const nextProduct = normalizeExternalProduct(data, searchAsin);
         setProducts((current) => {
           if (current.some((product) => product.asin === nextProduct.asin)) {
             return current;
@@ -320,7 +289,7 @@ const AppWorkspace: React.FC = () => {
   }, [deferredSearch, products]);
 
   const searchTerm = deferredSearch.toLowerCase();
-  const filteredProducts = products.filter((product) => {
+  const filteredProducts = useMemo(() => products.filter((product) => {
     if (currentView === 'watchlist' && !savedIds.has(product.id)) {
       return false;
     }
@@ -340,7 +309,7 @@ const AppWorkspace: React.FC = () => {
       product.brand.toLowerCase().includes(searchTerm) ||
       product.category.toLowerCase().includes(searchTerm)
     );
-  });
+  }), [currentView, filters, products, savedIds, searchTerm]);
 
   const renderAuthPanel = () => (
     <div className="mb-6 flex flex-col gap-3 rounded-2xl border border-slate-800 bg-slate-900/70 p-4 shadow-[0_24px_60px_rgba(2,6,23,0.28)] md:flex-row md:items-center md:justify-between">
@@ -493,7 +462,7 @@ const AppWorkspace: React.FC = () => {
                   </div>
                 ) : (
                   <div className="rounded-2xl border border-dashed border-slate-800 bg-slate-900/50 py-20 text-center text-slate-500">
-                    No products found. Search a live ASIN or configure `FEATURED_ASINS` on the backend to seed the dashboard.
+                    No products found. Search a live ASIN or configure `FEATURED_ASINS` in the server environment to seed the dashboard.
                   </div>
                 )}
               </div>

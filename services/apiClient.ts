@@ -72,8 +72,8 @@ const resolveApiBase = () => {
   const envBase = trimmed((import.meta.env.VITE_API_BASE as string | undefined) || __APP_API_BASE__);
   if (envBase) return envBase;
 
-  // Prefer localhost during dev if nothing is configured, otherwise fall back to site origin.
-  if (import.meta.env.DEV) return 'http://localhost:3001';
+  // In dev, same-origin requests let Vite serve local product API middleware first.
+  if (import.meta.env.DEV) return '';
   if (typeof window !== 'undefined' && window.location?.origin) {
     const origin = window.location.origin.replace(/\/$/, '');
     // Helpful warning when deploying to static hosts without a backend.
@@ -117,7 +117,7 @@ const buildErrorMessage = (status: number, rawText: string, fallbackMsg: string)
   const text = (rawText || '').trim();
   const looksHtml = text.startsWith('<');
   const snippet = looksHtml ? '' : text.slice(0, 240);
-  const baseHint = hasConfiguredBase ? '' : ' (API base not configured; set VITE_API_BASE or API_BASE for deployments)';
+  const baseHint = hasConfiguredBase || import.meta.env.DEV ? '' : ' (API base not configured; set VITE_API_BASE or API_BASE for deployments)';
   const statusPrefix = status ? `[${status}] ` : '';
   return `${statusPrefix}${snippet || fallbackMsg}${baseHint}`;
 };
