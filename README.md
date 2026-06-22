@@ -22,6 +22,8 @@ The browser never receives Amazon API secrets. Set these variables on the server
 - `AMAZON_PAAPI_PARTNER_TAG`
 - `FEATURED_ASINS` as a comma-separated list for dashboard preload products
 
+For local development, `.env.local` is loaded by `vite.config.ts` so the same-origin product API middleware can call Amazon directly while keeping credentials out of browser code.
+
 Optional marketplace overrides default to the US locale:
 
 - `AMAZON_PAAPI_MARKETPLACE=www.amazon.com`

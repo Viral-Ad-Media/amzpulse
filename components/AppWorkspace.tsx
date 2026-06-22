@@ -24,6 +24,7 @@ import {
 const ProductAnalysis = lazy(() => import('./ProductAnalysis'));
 const BatchAnalysis = lazy(() => import('./BatchAnalysis'));
 const AuthModal = lazy(() => import('./AuthModal'));
+const SolverAdmin = lazy(() => import('./SolverAdmin'));
 
 type AuthMode = 'login' | 'signup';
 
@@ -406,6 +407,7 @@ const AppWorkspace: React.FC = () => {
         setIsOpen={setIsSidebarOpen}
         isAuthenticated={Boolean(token)}
         onLogout={handleLogout}
+        isAdmin={role === 'admin' || role === 'owner'}
       />
 
       <div className="flex min-h-screen flex-col transition-all duration-300 md:ml-64">
@@ -540,6 +542,21 @@ const AppWorkspace: React.FC = () => {
                   <span className="font-bold text-amz-accent">{planLimits.maxBatchSize} ASINs</span>
                 </div>
               </div>
+            </div>
+          )}
+
+          {currentView === 'admin' && (
+            <div className="mx-auto max-w-4xl">
+              <Suspense
+                fallback={
+                  <div className="rounded-xl border border-slate-800 bg-slate-900 p-8 text-center text-slate-300">
+                    <Loader2 className="mx-auto mb-3 animate-spin" size={20} />
+                    Loading admin tools...
+                  </div>
+                }
+              >
+                <SolverAdmin />
+              </Suspense>
             </div>
           )}
         </main>

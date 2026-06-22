@@ -9,16 +9,21 @@ interface SidebarProps {
   setIsOpen: (isOpen: boolean) => void;
   isAuthenticated?: boolean;
   onLogout?: () => void;
+    isAdmin?: boolean;
 }
 
 const Sidebar: React.FC<SidebarProps> = ({ currentView, setView, isOpen, setIsOpen, isAuthenticated = false, onLogout }) => {
-  const menuItems = [
+    const menuItems = [
     { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
     { id: 'research', label: 'Research', icon: Search },
     { id: 'batch', label: 'Batch Analysis', icon: Layers },
     { id: 'watchlist', label: 'Watchlist', icon: Heart },
     { id: 'settings', label: 'Settings', icon: Settings },
   ];
+
+    if (isAdmin) {
+        menuItems.push({ id: 'admin', label: 'Admin', icon: LogOut });
+    }
 
   return (
     <>
