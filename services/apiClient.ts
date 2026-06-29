@@ -46,6 +46,10 @@ export interface WatchlistItem {
   product?: unknown;
 }
 
+export interface WatchlistMutationResponse {
+  watchlistItem?: WatchlistItem;
+}
+
 export interface BillingPlan {
   name: string;
   monthlyAsinQuota: number;
@@ -143,14 +147,14 @@ export async function analyzeBatch(asins: string[]) {
     headers: buildHeaders({ 'Content-Type': 'application/json' }),
     body: JSON.stringify({ asins })
   });
-  return handle(resp, 'Batch analyze failed');
+  return handle<Record<string, any>[]>(resp, 'Batch analyze failed');
 }
 
 export async function fetchProduct(asin: string) {
   const resp = await fetch(`${API_BASE}/api/products/${encodeURIComponent(asin)}`, {
     headers: buildHeaders()
   });
-  return handle(resp, 'Fetch product failed');
+  return handle<Record<string, any>>(resp, 'Fetch product failed');
 }
 
 export async function getFeaturedProducts() {
@@ -197,7 +201,7 @@ export async function addToWatchlist(asin: string) {
     headers: buildHeaders({ 'Content-Type': 'application/json' }),
     body: JSON.stringify({ asin })
   });
-  return handle(resp, 'Add to watchlist failed');
+  return handle<WatchlistMutationResponse>(resp, 'Add to watchlist failed');
 }
 
 export async function getBillingPlans() {

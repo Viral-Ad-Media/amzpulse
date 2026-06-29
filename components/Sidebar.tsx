@@ -1,5 +1,5 @@
 import React from 'react';
-import { LayoutDashboard, Search, Layers, Heart, Settings, Zap, LogOut } from 'lucide-react';
+import { LayoutDashboard, Search, Layers, Heart, Settings, Zap, LogOut, ShieldCheck } from 'lucide-react';
 import { ViewMode } from '../types';
 
 interface SidebarProps {
@@ -9,11 +9,19 @@ interface SidebarProps {
   setIsOpen: (isOpen: boolean) => void;
   isAuthenticated?: boolean;
   onLogout?: () => void;
-    isAdmin?: boolean;
+  isAdmin?: boolean;
 }
 
-const Sidebar: React.FC<SidebarProps> = ({ currentView, setView, isOpen, setIsOpen, isAuthenticated = false, onLogout }) => {
-    const menuItems = [
+const Sidebar: React.FC<SidebarProps> = ({
+  currentView,
+  setView,
+  isOpen,
+  setIsOpen,
+  isAuthenticated = false,
+  onLogout,
+  isAdmin = false
+}) => {
+  const menuItems = [
     { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
     { id: 'research', label: 'Research', icon: Search },
     { id: 'batch', label: 'Batch Analysis', icon: Layers },
@@ -21,9 +29,9 @@ const Sidebar: React.FC<SidebarProps> = ({ currentView, setView, isOpen, setIsOp
     { id: 'settings', label: 'Settings', icon: Settings },
   ];
 
-    if (isAdmin) {
-        menuItems.push({ id: 'admin', label: 'Admin', icon: LogOut });
-    }
+  if (isAdmin) {
+    menuItems.push({ id: 'admin', label: 'Admin', icon: ShieldCheck });
+  }
 
   return (
     <>

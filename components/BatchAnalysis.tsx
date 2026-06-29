@@ -19,7 +19,8 @@ const BatchAnalysis: React.FC = () => {
     setIsProcessing(true);
     setError(null);
 
-    const asins = [...new Set(input.split(/[\s,]+/).map(s => s.trim().toUpperCase()).filter(s => s.length > 0))];
+    const parsedAsins = input.split(/[\s,]+/).map((value) => value.trim().toUpperCase()).filter(Boolean);
+    const asins = Array.from(new Set<string>(parsedAsins));
     const invalidAsins = asins.filter((asin) => !ASIN_PATTERN.test(asin));
 
     if (invalidAsins.length > 0) {
@@ -29,7 +30,7 @@ const BatchAnalysis: React.FC = () => {
     }
 
     try {
-      const backendResults: any[] = await apiAnalyzeBatch(asins);
+      const backendResults = await apiAnalyzeBatch(asins);
       const mapped = normalizeExternalProducts(backendResults);
       setResults(mapped);
     } catch (err) {
