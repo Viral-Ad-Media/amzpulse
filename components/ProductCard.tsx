@@ -1,7 +1,8 @@
 import React from 'react';
-import { TrendingUp, Star, BarChart2, Package, Heart, Diamond } from 'lucide-react';
+import { TrendingUp, Star, BarChart2, Package, Heart, Diamond, StickyNote } from 'lucide-react';
 import { Product } from '../types';
 import Tooltip from './Tooltip';
+import { hasProductUserData } from '../services/localProductData';
 
 interface ProductCardProps {
   product: Product;
@@ -20,6 +21,7 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product, onClick, isSa
   const reviewLabel = product.reviews > 0 ? `(${product.reviews.toLocaleString()})` : '';
   const salesLabel = product.estimatedSales > 0 ? `${product.estimatedSales.toLocaleString()}/mo` : 'No sales est.';
   const sellerLabel = product.sellers > 0 ? `${product.sellers.toLocaleString()} Offers` : 'N/A';
+  const hasNotes = hasProductUserData(product.asin);
 
   return (
     <div 
@@ -51,6 +53,14 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product, onClick, isSa
                     <span className="bg-gradient-to-r from-indigo-500 to-purple-500 text-white text-[10px] font-bold px-2 py-1 rounded flex items-center gap-1 shadow-lg animate-pulse">
                         <Diamond size={10} fill="currentColor"/> Rare Find
                     </span>
+                )}
+
+                {hasNotes && (
+                    <Tooltip label="You have sourcing notes saved" side="right">
+                        <span className="bg-cyan-500/20 text-cyan-300 text-[10px] font-bold px-2 py-1 rounded flex items-center gap-1 border border-cyan-500/30">
+                            <StickyNote size={10} /> Notes
+                        </span>
+                    </Tooltip>
                 )}
             </div>
             <div className="flex gap-1">

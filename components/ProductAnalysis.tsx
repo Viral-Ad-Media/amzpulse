@@ -2,6 +2,7 @@ import React, { Suspense, lazy, useEffect, useState } from 'react';
 import { X, ShoppingCart, Activity, Copy, Save, RefreshCw, ShieldCheck, TrendingUp, Calculator, Heart, Download, ExternalLink, Truck, Package, Box, Warehouse, AlertOctagon, Flame, Calendar, Loader2 } from 'lucide-react';
 import { Product, AnalysisResult } from '../types';
 import { fetchProduct as apiFetchProduct } from '../services/apiClient';
+import { getProductUserData, saveProductUserData } from '../services/localProductData';
 
 const TrendChart = lazy(() => import('./TrendChart'));
 type ProductAnalysisTab = 'overview' | 'calculator' | 'history' | 'risks';
@@ -22,14 +23,20 @@ const ProductAnalysis: React.FC<ProductAnalysisProps> = ({ product, onClose, isS
   const [loading, setLoading] = useState(!product.analysis);
   const [activeTab, setActiveTab] = useState<ProductAnalysisTab>('overview');
   
-  // State for Calculator V2
-  const [fulfillmentMode, setFulfillmentMode] = useState<'FBA' | 'FBM'>('FBA');
-  const [salePrice, setSalePrice] = useState<number>(product.price);
-  const [buyCost, setBuyCost] = useState<number>(0);
-  const [prepCost, setPrepCost] = useState<number>(0);
-  const [shippingToAmz, setShippingToAmz] = useState<number>(0.50); // Default per unit inbound
-  const [shippingCostFbm, setShippingCostFbm] = useState<number>(0); // Outbound for FBM
-  
+  // State for Calculator V2 — lazily seeded from localStorage so reopening a product
+  // restores what was there before (the modal fully unmounts on close, so a plain
+  // useState initializer per mount is enough; no need to watch product.asin changes).
+  const [stored] = useState(() => getProductUserData(product.asin));
+  const [fulfillmentMode, setFulfillmentMode] = useState<'FBA' | 'FBM'>(stored.fulfillmentMode || 'FBA');
+  const [salePrice, setSalePrice] = useState<number>(stored.salePrice ?? product.price);
+  const [buyCost, setBuyCost] = useState<number>(stored.buyCost ?? 0);
+  const [prepCost, setPrepCost] = useState<number>(stored.prepCost ?? 0);
+  const [shippingToAmz, setShippingToAmz] = useState<number>(stored.shippingToAmz ?? 0.50); // Default per unit inbound
+  const [shippingCostFbm, setShippingCostFbm] = useState<number>(stored.shippingCostFbm ?? 0); // Outbound for FBM
+  const [notes, setNotes] = useState<string>(stored.notes || '');
+  const [supplierUrl, setSupplierUrl] = useState<string>(stored.supplierUrl || '');
+  const [targetRoi, setTargetRoi] = useState<number>(stored.targetRoi ?? 0);
+
   const [roi, setRoi] = useState<number>(0);
   const [profit, setProfit] = useState<number>(0);
   const [margin, setMargin] = useState<number>(0);
@@ -57,6 +64,25 @@ const ProductAnalysis: React.FC<ProductAnalysisProps> = ({ product, onClose, isS
     setRoi(parseFloat(calculatedRoi.toFixed(2)));
     setMargin(parseFloat(calculatedMargin.toFixed(2)));
   }, [salePrice, buyCost, prepCost, shippingToAmz, shippingCostFbm, fulfillmentMode, product]);
+
+  // Persist calculator inputs and sourcing notes locally, debounced so typing doesn't
+  // hit localStorage on every keystroke.
+  useEffect(() => {
+    const id = setTimeout(() => {
+      saveProductUserData(product.asin, {
+        fulfillmentMode,
+        salePrice,
+        buyCost,
+        prepCost,
+        shippingToAmz,
+        shippingCostFbm,
+        notes,
+        supplierUrl,
+        targetRoi
+      });
+    }, 500);
+    return () => clearTimeout(id);
+  }, [product.asin, fulfillmentMode, salePrice, buyCost, prepCost, shippingToAmz, shippingCostFbm, notes, supplierUrl, targetRoi]);
 
   // AI Fetch
   useEffect(() => {
@@ -343,6 +369,7 @@ const ProductAnalysis: React.FC<ProductAnalysisProps> = ({ product, onClose, isS
 
             {/* CALCULATOR TAB */}
             {activeTab === 'calculator' && (
+              <div className="space-y-8">
                 <div className="grid md:grid-cols-2 gap-8">
                     <div className="space-y-6">
                         <div className="flex bg-slate-800 rounded-lg p-1 border border-slate-700 w-fit">
@@ -413,8 +440,67 @@ const ProductAnalysis: React.FC<ProductAnalysisProps> = ({ product, onClose, isS
                                 <div className="text-xs text-slate-500 font-bold uppercase">Margin</div>
                             </div>
                         </div>
+                        {targetRoi > 0 && (
+                            <div className={`rounded-lg border px-4 py-2 text-center text-xs font-bold ${roi >= targetRoi ? 'border-green-500/30 bg-green-500/10 text-green-300' : 'border-red-500/30 bg-red-500/10 text-red-300'}`}>
+                                {roi >= targetRoi ? `Meets your ${targetRoi}% target` : `${(targetRoi - roi).toFixed(1)}pt below your ${targetRoi}% target`}
+                            </div>
+                        )}
                     </div>
                 </div>
+
+                {/* Sourcing & Notes */}
+                <div className="rounded-xl border border-slate-700 bg-slate-800 p-5">
+                    <div className="mb-4 flex items-center justify-between">
+                        <h3 className="text-sm font-bold uppercase tracking-wide text-slate-400">Sourcing &amp; Notes</h3>
+                        <span className="text-xs text-slate-500">Saved locally on this device</span>
+                    </div>
+                    <div className="grid gap-4 md:grid-cols-2">
+                        <div>
+                            <label className="text-slate-400 text-xs uppercase font-bold">Supplier URL</label>
+                            <div className="mt-1 flex items-center gap-2">
+                                <input
+                                    type="url"
+                                    value={supplierUrl}
+                                    onChange={(e) => setSupplierUrl(e.target.value)}
+                                    placeholder="https://alibaba.com/..."
+                                    className="w-full bg-slate-900 border border-slate-700 rounded p-2 text-sm text-white focus:outline-none focus:ring-1 focus:ring-amz-accent"
+                                />
+                                {supplierUrl && (
+                                    <a
+                                        href={supplierUrl}
+                                        target="_blank"
+                                        rel="noreferrer"
+                                        className="shrink-0 rounded bg-slate-700 p-2 text-slate-300 transition hover:text-white"
+                                        aria-label="Open supplier link"
+                                    >
+                                        <ExternalLink size={14} />
+                                    </a>
+                                )}
+                            </div>
+                        </div>
+                        <div>
+                            <label className="text-slate-400 text-xs uppercase font-bold">Target ROI %</label>
+                            <input
+                                type="number"
+                                value={targetRoi || ''}
+                                onChange={(e) => setTargetRoi(parseFloat(e.target.value) || 0)}
+                                placeholder="30"
+                                className="mt-1 w-full bg-slate-900 border border-slate-700 rounded p-2 text-sm text-white focus:outline-none focus:ring-1 focus:ring-amz-accent"
+                            />
+                        </div>
+                    </div>
+                    <div className="mt-4">
+                        <label className="text-slate-400 text-xs uppercase font-bold">Notes</label>
+                        <textarea
+                            value={notes}
+                            onChange={(e) => setNotes(e.target.value)}
+                            rows={3}
+                            placeholder="Sourcing terms, MOQ, lead time, red flags..."
+                            className="mt-1 w-full resize-none bg-slate-900 border border-slate-700 rounded p-2 text-sm text-slate-200 focus:outline-none focus:ring-1 focus:ring-amz-accent"
+                        />
+                    </div>
+                </div>
+              </div>
             )}
 
             {/* RISKS TAB */}
