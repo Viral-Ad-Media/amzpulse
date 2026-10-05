@@ -9,13 +9,13 @@ export interface RankPoint {
 }
 
 export interface AnalysisResult {
-  grade: 'A' | 'B' | 'C' | 'D' | 'F';
+  grade: "A" | "B" | "C" | "D" | "F";
   score: number; // 0-100
   summary: string;
   pros: string[];
   cons: string[];
-  competitionLevel: 'Low' | 'Medium' | 'High';
-  demandLevel: 'Low' | 'Medium' | 'High';
+  competitionLevel: "Low" | "Medium" | "High";
+  demandLevel: "Low" | "Medium" | "High";
   suggestedAction: string;
   fbaAnalysis: string; // Specific verdict for FBA
   fbmAnalysis: string; // Specific verdict for FBM
@@ -37,34 +37,37 @@ export interface Product {
   reviews: number;
   trend: number; // Percentage growth
   description: string;
-  
+
   priceHistory: PricePoint[];
   bsrHistory: RankPoint[];
-  
+
   // Seller Amp / FBA Specifics
   asin: string;
   bsr: number;
   estimatedSales: number;
   isEstimatedSales?: boolean;
-  
+
   // Fees Breakdown
-  referralFee: number;
-  fbaFee: number;
-  storageFee: number; // New
-  
+  referralFee: number | null;
+  fbaFee: number | null;
+  storageFee: number | null; // New
+
   // Specs
   weight: string;
   dimensions: string;
   sellers: number;
-  
+
   // Risk Flags (New)
   isHazmat: boolean;
   isIpRisk: boolean;
   isOversized: boolean;
   riskDataAvailable?: boolean;
+  feesAvailable?: boolean;
 
   // Seasonality (New)
-  seasonalityTags: ('Q1' | 'Q2' | 'Q3' | 'Q4' | 'Evergreen' | 'Summer' | 'Back to School')[];
+  seasonalityTags: (
+    "Q1" | "Q2" | "Q3" | "Q4" | "Evergreen" | "Summer" | "Back to School"
+  )[];
 
   // User Specific Data (Stored locally)
   supplierUrl?: string;
@@ -92,4 +95,11 @@ export interface FilterState {
   season?: string; // New
 }
 
-export type ViewMode = 'dashboard' | 'research' | 'batch' | 'watchlist' | 'referrals' | 'rewards' | 'settings';
+export type ViewMode =
+  | "dashboard"
+  | "research"
+  | "batch"
+  | "watchlist"
+  | "referrals"
+  | "rewards"
+  | "settings";

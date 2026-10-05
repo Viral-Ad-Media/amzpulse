@@ -1,92 +1,69 @@
-**Prerequisites:**  Node.js
+# AmzPulse
 
+AmzPulse is a React and TypeScript workspace for Amazon US product research, saved watchlists, batch lookups, and optional AI analysis. This repository contains the frontend. Run it with [amzpulse-server](https://github.com/Viral-Ad-Media/amzpulse-server), which owns authentication, billing, quotas, database access, and provider credentials.
 
-1. Install dependencies:
-   `npm install`
-2. Copy `.env.example` to `.env.local` and set your keys (e.g. `GEMINI_API_KEY`)
-3. Run the app:
-   `npm run dev`
+## Local development
 
-## Real Amazon product data
+Use Node.js 22 or newer.
 
-This repo now includes server-side product API routes:
+1. Set up and start the backend using its README, including the Supabase migrations.
+2. Install this frontend and copy its environment template:
 
-- `GET /api/products/featured`
-- `GET /api/products/:asin`
-- `POST /api/batch/analyze` with `{ "asins": ["B0..."] }`
+   ```sh
+   npm ci
+   cp .env.example .env.local
+   npm run dev
+   ```
 
-The browser never receives Amazon or provider API secrets — all product lookups run through `server/amazonProvider.mjs`, which fans out to one or more **product data providers** in `server/providers/`:
+3. Open the URL printed by Vite, normally `http://localhost:5173`. With `VITE_API_BASE` empty, Vite forwards every `/api/*` request to `http://localhost:3001`. Sign up or sign in to research an ASIN.
 
-- `server/providers/paapi.mjs` — Amazon Product Advertising API (PA-API)
-- `server/providers/spapi.mjs` — [Amazon Selling Partner API](https://developer-docs.amazon.com/sp-api) (the official long-term replacement PA-API itself points to; needs a real seller account with SP-API authorized)
-- `server/providers/keepa.mjs` — [Keepa](https://keepa.com/#!api) (also the only provider here that returns real price/sales-rank history for the "History" tab)
-- `server/providers/rainforest.mjs` — [Rainforest API](https://www.rainforestapi.com/)
-- `server/providers/jungleScout.mjs` — [Jungle Scout API](https://developer.junglescout.com/api)
+For a remote backend, set `VITE_API_BASE=https://api.example.com` in `.env.local` and restart Vite. Use the backend origin without an `/api` suffix. Allow the frontend origin in the backend's `FRONTEND_URL` setting.
 
-Configure credentials for any subset of these; only providers with credentials set are used. For a batch of ASINs, providers are tried in order and each one only fills in the ASINs the previous one couldn't find — so if PA-API is unconfigured, rate-limited, or missing a field for a given ASIN, the next configured provider can still cover it instead of the whole lookup failing. Set the order (or restrict to a subset) with:
+## Configuration and deployment
 
-- `PRODUCT_DATA_PROVIDERS=paapi,spapi,keepa,rainforest,junglescout` (default order shown; e.g. set to `keepa` alone to skip everything else)
+| Setting                | Where                       | Purpose                                                                             |
+| ---------------------- | --------------------------- | ----------------------------------------------------------------------------------- |
+| `VITE_API_BASE`        | Frontend build environment  | Backend origin for all API requests; required on static hosts such as GitHub Pages. |
+| `API_BASE`             | Frontend build environment  | Compatibility alias when `VITE_API_BASE` is unset.                                  |
+| `AMZPULSE_BACKEND_URL` | Vercel function environment | Fixed HTTPS backend origin for the optional same-origin gateway.                    |
 
-Provider credentials:
+Set `VITE_API_BASE` before `npm run build`; changing it after building does not change the generated JavaScript. Deploy `dist/` to your static host. Hash routing supports public pages, `#/app`, and password recovery without SPA server rewrites.
 
-- PA-API: `AMAZON_PAAPI_ACCESS_KEY`, `AMAZON_PAAPI_SECRET_KEY`, `AMAZON_PAAPI_PARTNER_TAG` (optional: `AMAZON_PAAPI_MARKETPLACE`, `AMAZON_PAAPI_HOST`, `AMAZON_PAAPI_REGION`, `AMAZON_PAAPI_LANGUAGE`, defaulting to the US locale)
-- SP-API: `SPAPI_CLIENT_ID`, `SPAPI_CLIENT_SECRET`, `SPAPI_REFRESH_TOKEN` from an authorized SP-API app (optional: `SPAPI_REGION` — `na`/`eu`/`fe`, default `na`; `SPAPI_MARKETPLACE_ID`, default `ATVPDKIKX0DER` for amazon.com)
-- Keepa: `KEEPA_API_KEY` (optional `KEEPA_DOMAIN`, default `1` for amazon.com)
-- Rainforest: `RAINFOREST_API_KEY` (optional `RAINFOREST_AMAZON_DOMAIN`, default `amazon.com`)
-- Jungle Scout: `JUNGLESCOUT_KEY_NAME`, `JUNGLESCOUT_API_KEY` (optional `JUNGLESCOUT_MARKETPLACE`, default `us`)
-- `FEATURED_ASINS` as a comma-separated list for dashboard preload products
+On Vercel, you may leave both build-time API base settings empty and set `AMZPULSE_BACKEND_URL` instead. The functions in `api/` forward product, analysis, authentication, billing, watchlist, and sourcing requests to the same backend. They forward bearer/API-key authentication, limit request size, and disable caching. They contain no provider or database clients. Point Stripe webhooks directly at the backend, not this gateway.
 
-For local development, `.env.local` is loaded by `vite.config.ts` so the same-origin product API middleware can call these providers directly while keeping credentials out of browser code.
+Direct browser-to-backend requests are recommended: the backend can rate-limit each client's IP. A gateway shares backend IP limits across clients, so account for gateway traffic when setting backend limits and host function timeouts. Large batches may take several minutes; a gateway host with a shorter execution limit should use direct API mode.
 
-Amazon's Product Advertising API documentation says PA-API was deprecated on May 15, 2026 and points new integrations to the Creators API (which isn't wired up here yet). SP-API is Amazon's actual current official access path and the one most worth setting up for the long term; Keepa/Rainforest/Jungle Scout are licensed third-party data-as-a-service providers that work as fallbacks without a seller account. There is intentionally no scraping fallback here: an earlier revision scraped Amazon product pages with a headless browser and solved CAPTCHA challenges to keep working after PA-API access lapsed, which is not something this project does. If none of the configured providers can find an ASIN, the API returns a clear error instead of silently falling back to scraping.
+Keep Supabase service-role, Stripe, Amazon, Keepa, Rainforest, Resend, and Gemini secrets exclusively in the backend. Never use a `VITE_` prefix for a secret; those variables are public browser configuration. Existing frontend provider credentials must be moved to the backend.
 
-Field coverage varies by provider — PA-API and SP-API return catalog fields like title, image, price, offer availability/offer count, and sales rank, but not review counts, FBA fees, IP risk, hazmat status, estimated monthly sales, or historical charts. Keepa additionally fills in rating, review count, and real price/BSR history. The UI marks fields no configured provider supplied as unavailable instead of filling them with mock values.
+## Research behavior
 
-Two of the five providers are best-effort and should be verified before you rely on them in production, since this session couldn't fully confirm their exact response shapes against live docs:
-- `server/providers/jungleScout.mjs` — Jungle Scout's public docs describe the Product Database endpoint mainly as a keyword/category discovery search, not a confirmed single-ASIN lookup.
-- `server/providers/rainforest.mjs` — the mapper reads a couple of plausible field-name variants defensively, but the exact response schema wasn't independently confirmed this session.
+- Product searches require a signed-in account. Batch runs require an owner or admin role.
+- Category discovery runs only after clicking **Load category products**. The legacy `trending` route supplies electronics/category bestsellers, not a measured trend. Discovery uses up to 24 ASIN credits across both categories.
+- **Analyze product** starts AI analysis explicitly. An unavailable service displays an error instead of a fabricated score or grade.
+- The backend reserves monthly usage atomically and refunds failed lookups. Successful cached lookups also consume credits. Limits are shared by the organization: Free has 300 ASINs, 50 AI calls, and 20 ASINs per batch; Pro has 5,000 ASINs, 1,000 AI calls, and 100 ASINs per batch.
+- Provider field coverage varies. Missing fees, risk assessments, history, and sales are unavailable. Profit and ROI require all applicable fees; supply manual fees when needed. A supplied referral fee is tied to its sale price, so a changed sale price requires a new referral-fee entry.
+- Historical price and rank series are joined by timestamp. Batch errors remain separate from successful products, and CSV exports escape spreadsheet formulas.
+- Watchlists sync with the backend and restore saved product details after reload. Calculator inputs, supplier links, and research notes save immediately in this browser, scoped to user and organization. They do not sync across devices. Old unscoped notes are intentionally not imported into an account automatically.
 
-`server/providers/paapi.mjs`, `server/providers/spapi.mjs`, and `server/providers/keepa.mjs` are implemented against their documented/confirmed request and response shapes.
+The current calculator supports US/USD research. Referral tracking and rewards are placeholders; sharing a referral link does not credit rewards. AI output is commentary on available product data, not verification of missing IP or hazmat information.
 
-## AI analysis
+## Checks and project layout
 
-Gemini-based product analysis now runs server-side (`server/geminiProvider.mjs`, exposed at `POST /api/analysis/product`) instead of calling the Gemini SDK from the browser. Set `GEMINI_API_KEY` (server-only, no `VITE_` prefix) so it never ships in the client bundle.
+```sh
+npm run check
+npm test
+npm run build
+```
 
-## Frontend -> Backend integration
+GitHub Actions runs the type check, regression tests, production build, and dependency audit. Tests cover watchlist reloads, explicit paid actions, local note persistence, missing fees, sparse charts, batch errors, CSV escaping, and gateway forwarding.
 
-During local development, product routes under `/api/products/*` and `/api/batch/analyze` are handled by Vite middleware in this repo. Other `/api/*` requests can be proxied to `http://localhost:3001` for auth, billing, and watchlist work (see `vite.config.ts`). When deploying or using a remote API for every backend route, set `VITE_API_BASE` to that host before building:
+- `components/`: workspace, public pages, product analysis, charts, and batch UI.
+- `services/apiClient.ts`: shared backend API contract and authentication headers.
+- `services/productMapper.ts`: provider data normalization.
+- `services/localProductData.ts`: account-scoped browser persistence.
+- `server/backendProxy.mjs` and `api/`: optional Vercel gateway.
+- `tests/`: frontend and gateway regression checks.
 
-- Local backend: `export VITE_API_BASE=http://localhost:3001`
-- Production API: `export VITE_API_BASE=https://api.yourdomain.com`
+## Audit remediation rollout
 
-If `VITE_API_BASE` is not provided, the app will call the same origin it was served from.
-
-## Public routes
-
-The frontend now includes a static public shell alongside the workspace. Core routes are available via hash routing so static hosts do not need server-side rewrites:
-
-- `#/`
-- `#/features`
-- `#/pricing`
-- `#/about`
-- `#/contact`
-- `#/forgot-password`
-- `#/reset-password`
-- `#/privacy`
-- `#/terms`
-- `#/billing/success`
-- `#/billing/cancel`
-- `#/app`
-
-Password reset note: the API now supports forgot/reset password endpoints. In non-production environments, the forgot-password response includes the generated reset link/token for local testing until email delivery is wired up.
-
-### Vercel / static hosts: avoid 404s
-- Set `VITE_API_BASE` (or `API_BASE`) in your site environment variables to your backend host.
-- On static hosts like Vercel/GitHub Pages there is no built-in `/api/*` handler for this separate backend, so missing `VITE_API_BASE` will surface as a host 404 page when you try to log in or sign up.
-- If you want the frontend to talk to your deployed API, configure `VITE_API_BASE` to that backend origin before building.
-
-### Pairing with an auth/billing backend
-- Product lookup can run from the serverless API in this repo.
-- Auth, Stripe billing, watchlists, and usage tracking still require a backend that implements the existing `/api/auth/*`, `/api/billing/*`, and `/api/watchlist/*` routes.
-- Frontend env: set `VITE_API_BASE` (or `API_BASE`) only when you want the frontend to call a separate remote backend for every `/api/*` request.
-- During local development, same-origin product routes are handled by Vite middleware first. Other `/api/*` requests can still be proxied to `http://localhost:3001` if you run a compatible backend there.
+Use the frontend and backend audit-remediation branches together. Apply the backend security migration before starting the updated API; it adds session versioning, private database access, canonical product payloads, and transactional usage functions. Configure Redis, reset email delivery, billing, and the chosen data provider as described in the backend README. Existing sessions must sign in again. These code changes do not themselves deploy services, apply production migrations, or verify live credentials.

@@ -1,4 +1,12 @@
-import React, { Suspense, lazy, useDeferredValue, useEffect, useMemo, useState } from 'react';
+import React, {
+  Suspense,
+  lazy,
+  useDeferredValue,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import {
   Check,
   Copy,
@@ -15,16 +23,19 @@ import {
   Shield,
   Sparkles,
   Trophy,
-  UserPlus
-} from 'lucide-react';
-import { FilterState, Product, ViewMode } from '../types';
-import EmptyState from './EmptyState';
-import FilterBar from './FilterBar';
-import OnboardingTour, { ONBOARDING_STORAGE_KEY } from './OnboardingTour';
-import { ProductCard } from './ProductCard';
-import Sidebar from './Sidebar';
-import Tooltip from './Tooltip';
-import { normalizeExternalProduct, normalizeExternalProducts } from '../services/productMapper';
+  UserPlus,
+} from "lucide-react";
+import { FilterState, Product, ViewMode } from "../types";
+import EmptyState from "./EmptyState";
+import FilterBar from "./FilterBar";
+import OnboardingTour, { ONBOARDING_STORAGE_KEY } from "./OnboardingTour";
+import { ProductCard } from "./ProductCard";
+import Sidebar from "./Sidebar";
+import Tooltip from "./Tooltip";
+import {
+  normalizeExternalProduct,
+  normalizeExternalProducts,
+} from "../services/productMapper";
 import {
   addToWatchlist,
   createCheckoutSession,
@@ -40,49 +51,55 @@ import {
   removeFromWatchlist,
   setAuthToken as setApiAuthToken,
   type UsageSnapshot,
-  type WatchlistItem
-} from '../services/apiClient';
+  type WatchlistItem,
+} from "../services/apiClient";
 
-const ProductAnalysis = lazy(() => import('./ProductAnalysis'));
-const BatchAnalysis = lazy(() => import('./BatchAnalysis'));
-const AuthModal = lazy(() => import('./AuthModal'));
+const ProductAnalysis = lazy(() => import("./ProductAnalysis"));
+const BatchAnalysis = lazy(() => import("./BatchAnalysis"));
+const AuthModal = lazy(() => import("./AuthModal"));
 
-type AuthMode = 'login' | 'signup';
+type AuthMode = "login" | "signup";
 
 const PLAN_LIMITS = {
   free: { monthlyAsinQuota: 300, maxBatchSize: 20 },
-  pro: { monthlyAsinQuota: 5000, maxBatchSize: 100 }
+  pro: { monthlyAsinQuota: 5000, maxBatchSize: 100 },
 };
 
 const isAsinInput = (value: string) => /^[A-Z0-9]{10}$/i.test(value);
 
 const AppWorkspace: React.FC = () => {
-  const [currentView, setView] = useState<ViewMode>('dashboard');
+  const [currentView, setView] = useState<ViewMode>("dashboard");
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [products, setProducts] = useState<Product[]>([]);
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
+  const sessionGeneration = useRef(0);
+  const [watchlistProducts, setWatchlistProducts] = useState<Product[]>([]);
   const [savedIds, setSavedIds] = useState<Set<string>>(new Set());
   const [watchlistMap, setWatchlistMap] = useState<Record<string, string>>({});
   const [token, setToken] = useState<string | null>(null);
-  const [userEmail, setUserEmail] = useState('');
-  const [plan, setPlan] = useState<string>('free');
+  const [userEmail, setUserEmail] = useState("");
+  const [plan, setPlan] = useState<string>("free");
   const [role, setRole] = useState<string | undefined>();
   const [usage, setUsage] = useState<UsageSnapshot | null>(null);
-  const [authMode, setAuthMode] = useState<AuthMode>('login');
+  const [authMode, setAuthMode] = useState<AuthMode>("login");
   const [showAuthModal, setShowAuthModal] = useState(false);
   const [authLoading, setAuthLoading] = useState(false);
   const [authError, setAuthError] = useState<string | null>(null);
   const [billingLoading, setBillingLoading] = useState(false);
-  const [authForm, setAuthForm] = useState({ email: '', password: '', name: '' });
+  const [authForm, setAuthForm] = useState({
+    email: "",
+    password: "",
+    name: "",
+  });
   const [filters, setFilters] = useState<FilterState>({
-    category: '',
-    subCategory: '',
+    category: "",
+    subCategory: "",
     minPrice: 0,
     maxPrice: 0,
     minRoi: 0,
     maxBSR: 0,
-    search: '',
-    season: ''
+    search: "",
+    season: "",
   });
   const [isFetchingProduct, setIsFetchingProduct] = useState(false);
   const [isLoadingFeatured, setIsLoadingFeatured] = useState(false);
@@ -97,12 +114,12 @@ const AppWorkspace: React.FC = () => {
   const [referralLinkCopied, setReferralLinkCopied] = useState(false);
 
   const deferredSearch = useDeferredValue(filters.search.trim());
-  const canManageBilling = role === 'owner' || role === 'admin';
+  const canManageBilling = role === "owner" || role === "admin";
   const canUseBatch = Boolean(token && canManageBilling);
-  const planLimits = plan === 'pro' ? PLAN_LIMITS.pro : PLAN_LIMITS.free;
+  const planLimits = plan === "pro" ? PLAN_LIMITS.pro : PLAN_LIMITS.free;
 
   useEffect(() => {
-    const stored = localStorage.getItem('amzpulse_token');
+    const stored = localStorage.getItem("amzpulse_token");
     if (!stored) return;
 
     setToken(stored);
@@ -126,8 +143,10 @@ const AppWorkspace: React.FC = () => {
         }
       } catch (err) {
         if (cancelled) return;
-        console.warn('Featured product sync failed', err);
-        setProductError((err as Error)?.message || 'Unable to load featured Amazon products');
+        console.warn("Featured product sync failed", err);
+        setProductError(
+          (err as Error)?.message || "Unable to load featured Amazon products",
+        );
       } finally {
         if (!cancelled) {
           setIsLoadingFeatured(false);
@@ -151,11 +170,15 @@ const AppWorkspace: React.FC = () => {
         setTrendingError(null);
         const trending = await apiGetTrendingProducts();
         if (cancelled) return;
-        setTrendingProducts(Array.isArray(trending) ? normalizeExternalProducts(trending) : []);
+        setTrendingProducts(
+          Array.isArray(trending) ? normalizeExternalProducts(trending) : [],
+        );
       } catch (err) {
         if (cancelled) return;
-        console.warn('Trending product sync failed', err);
-        setTrendingError((err as Error)?.message || 'Unable to load trending products');
+        console.warn("Trending product sync failed", err);
+        setTrendingError(
+          (err as Error)?.message || "Unable to load trending products",
+        );
       } finally {
         if (!cancelled) {
           setIsLoadingTrending(false);
@@ -163,12 +186,16 @@ const AppWorkspace: React.FC = () => {
       }
     };
 
-    void loadTrendingProducts();
+    const load = () => {
+      if (token) void loadTrendingProducts();
+    };
+    window.addEventListener("amzpulse-load-discovery", load);
 
     return () => {
       cancelled = true;
+      window.removeEventListener("amzpulse-load-discovery", load);
     };
-  }, []);
+  }, [token]);
 
   useEffect(() => {
     let cancelled = false;
@@ -179,11 +206,17 @@ const AppWorkspace: React.FC = () => {
         setBestSellersError(null);
         const bestSellers = await apiGetBestSellerProducts();
         if (cancelled) return;
-        setBestSellerProducts(Array.isArray(bestSellers) ? normalizeExternalProducts(bestSellers) : []);
+        setBestSellerProducts(
+          Array.isArray(bestSellers)
+            ? normalizeExternalProducts(bestSellers)
+            : [],
+        );
       } catch (err) {
         if (cancelled) return;
-        console.warn('Best-seller product sync failed', err);
-        setBestSellersError((err as Error)?.message || 'Unable to load best-seller products');
+        console.warn("Best-seller product sync failed", err);
+        setBestSellersError(
+          (err as Error)?.message || "Unable to load best-seller products",
+        );
       } finally {
         if (!cancelled) {
           setIsLoadingBestSellers(false);
@@ -191,22 +224,45 @@ const AppWorkspace: React.FC = () => {
       }
     };
 
-    void loadBestSellerProducts();
+    const load = () => {
+      if (token) void loadBestSellerProducts();
+    };
+    window.addEventListener("amzpulse-load-discovery", load);
 
     return () => {
       cancelled = true;
+      window.removeEventListener("amzpulse-load-discovery", load);
     };
-  }, []);
+  }, [token]);
 
   useEffect(() => {
     if (!localStorage.getItem(ONBOARDING_STORAGE_KEY)) {
-      setView('dashboard');
+      setView("dashboard");
       setIsTourOpen(true);
     }
   }, []);
 
+  useEffect(() => {
+    if (!token) return;
+    let cancelled = false;
+    const refresh = async () => {
+      try {
+        const next = await getUsage();
+        if (!cancelled) {
+          setUsage(next);
+          setPlan(next.plan || "free");
+        }
+      } catch {}
+    };
+    window.addEventListener("amzpulse-usage-updated", refresh);
+    return () => {
+      cancelled = true;
+      window.removeEventListener("amzpulse-usage-updated", refresh);
+    };
+  }, [token]);
+
   const startTour = () => {
-    setView('dashboard');
+    setView("dashboard");
     setIsTourOpen(true);
   };
 
@@ -222,9 +278,9 @@ const AppWorkspace: React.FC = () => {
   };
 
   const referralLink =
-    typeof window !== 'undefined' && userEmail
+    typeof window !== "undefined" && userEmail
       ? `${window.location.origin}${window.location.pathname}#/?ref=${hashToCode(userEmail)}`
-      : '';
+      : "";
 
   const copyReferralLink = async () => {
     if (!referralLink) return;
@@ -233,18 +289,29 @@ const AppWorkspace: React.FC = () => {
       setReferralLinkCopied(true);
       setTimeout(() => setReferralLinkCopied(false), 2000);
     } catch (err) {
-      console.warn('Copy referral link failed', err);
+      console.warn("Copy referral link failed", err);
     }
   };
 
   const bootstrapSession = async () => {
+    const generation = ++sessionGeneration.current;
     try {
       const profile = await me();
-      setUserEmail(profile.user?.email || '');
-      setPlan(profile.plan || 'free');
+      if (generation !== sessionGeneration.current) return;
+      setUserEmail(profile.user?.email || "");
+      setPlan(profile.plan || "free");
       setRole(profile.role);
 
-      const [watchlist, usageSnapshot] = await Promise.all([getWatchlist(), getUsage()]);
+      const [watchlist, usageSnapshot] = await Promise.all([
+        getWatchlist(),
+        getUsage(),
+      ]);
+      if (generation !== sessionGeneration.current) return;
+      setWatchlistProducts(
+        normalizeExternalProducts(
+          watchlist.map((item) => item.product).filter(Boolean),
+        ),
+      );
       const ids = new Set<string>();
       const map: Record<string, string> = {};
 
@@ -260,8 +327,14 @@ const AppWorkspace: React.FC = () => {
         setPlan(usageSnapshot.plan);
       }
     } catch (err) {
-      console.warn('Session bootstrap failed', err);
-      handleLogout();
+      console.warn("Session bootstrap failed", err);
+      if (
+        generation === sessionGeneration.current &&
+        (err as any)?.status === 401
+      )
+        handleLogout();
+      else if (generation === sessionGeneration.current)
+        setProductError("Unable to sync your account. Please try again.");
     }
   };
 
@@ -270,47 +343,58 @@ const AppWorkspace: React.FC = () => {
       setAuthLoading(true);
       setAuthError(null);
 
-      const action = authMode === 'login' ? login : register;
-      const response = await action(authForm.email, authForm.password, authMode === 'signup' ? authForm.name : undefined);
+      const action = authMode === "login" ? login : register;
+      const response = await action(
+        authForm.email,
+        authForm.password,
+        authMode === "signup" ? authForm.name : undefined,
+      );
       const newToken = response.token;
 
       setToken(newToken);
       setApiAuthToken(newToken);
-      setUserEmail(response.user?.email || '');
-      setPlan(response.plan || 'free');
+      setUserEmail(response.user?.email || "");
+      setPlan(response.plan || "free");
       setRole(response.role);
       setShowAuthModal(false);
-      setAuthForm({ email: '', password: '', name: '' });
+      setAuthForm({ email: "", password: "", name: "" });
 
       await bootstrapSession();
     } catch (err) {
-      setAuthError((err as Error)?.message || 'Auth failed');
+      setAuthError((err as Error)?.message || "Auth failed");
     } finally {
       setAuthLoading(false);
     }
   };
 
   const handleLogout = () => {
+    sessionGeneration.current++;
+    setWatchlistProducts([]);
+    setSelectedProduct(null);
+    setTrendingProducts([]);
+    setBestSellerProducts([]);
     setToken(null);
     setApiAuthToken(null);
-    setUserEmail('');
-    setPlan('free');
+    setUserEmail("");
+    setPlan("free");
     setRole(undefined);
     setSavedIds(new Set());
     setWatchlistMap({});
     setUsage(null);
-    setView('dashboard');
+    setView("dashboard");
   };
 
   const handleStartCheckout = async () => {
     if (!token) {
-      setAuthMode('signup');
+      setAuthMode("signup");
       setShowAuthModal(true);
       return;
     }
 
     if (!canManageBilling) {
-      setProductError('Only owner or admin accounts can manage billing and upgrades.');
+      setProductError(
+        "Only owner or admin accounts can manage billing and upgrades.",
+      );
       return;
     }
 
@@ -320,20 +404,27 @@ const AppWorkspace: React.FC = () => {
       const session = await createCheckoutSession();
       window.location.assign(session.url);
     } catch (err) {
-      setProductError((err as Error)?.message || 'Unable to start checkout');
+      setProductError((err as Error)?.message || "Unable to start checkout");
     } finally {
       setBillingLoading(false);
     }
   };
 
-  const handleToggleSave = async (eventOrId: React.MouseEvent | string, id?: string) => {
-    if (typeof eventOrId === 'object' && eventOrId !== null && 'stopPropagation' in eventOrId) {
+  const handleToggleSave = async (
+    eventOrId: React.MouseEvent | string,
+    id?: string,
+  ) => {
+    if (
+      typeof eventOrId === "object" &&
+      eventOrId !== null &&
+      "stopPropagation" in eventOrId
+    ) {
       eventOrId.stopPropagation();
     }
 
-    const productId = typeof eventOrId === 'string' ? eventOrId : id!;
+    const productId = typeof eventOrId === "string" ? eventOrId : id!;
     if (!token) {
-      setAuthMode('login');
+      setAuthMode("login");
       setShowAuthModal(true);
       return;
     }
@@ -344,6 +435,9 @@ const AppWorkspace: React.FC = () => {
         const watchId = watchlistMap[productId] || productId;
         await removeFromWatchlist(watchId);
 
+        setWatchlistProducts((current) =>
+          current.filter((p) => p.id !== productId),
+        );
         setSavedIds((current) => {
           const next = new Set(current);
           next.delete(productId);
@@ -357,6 +451,16 @@ const AppWorkspace: React.FC = () => {
         });
       } else {
         const result = await addToWatchlist(productId);
+        const savedProduct =
+          [...products, ...trendingProducts, ...bestSellerProducts].find(
+            (p) => p.id === productId,
+          ) ||
+          (selectedProduct?.id === productId ? selectedProduct : undefined);
+        if (savedProduct)
+          setWatchlistProducts((current) => [
+            ...current.filter((p) => p.id !== productId),
+            savedProduct,
+          ]);
 
         setSavedIds((current) => {
           const next = new Set(current);
@@ -365,18 +469,26 @@ const AppWorkspace: React.FC = () => {
         });
 
         if (result?.watchlistItem?.id) {
-          setWatchlistMap((current) => ({ ...current, [productId]: result.watchlistItem.id }));
+          setWatchlistMap((current) => ({
+            ...current,
+            [productId]: result.watchlistItem.id,
+          }));
         }
       }
     } catch (err) {
-      console.warn('Watchlist toggle failed', err);
+      setProductError((err as Error).message || "Unable to update watchlist");
     }
   };
 
   useEffect(() => {
     const searchAsin = deferredSearch.toUpperCase();
     if (!isAsinInput(searchAsin)) return;
-    if (products.some((product) => product.asin.toUpperCase() === searchAsin)) return;
+    if (!token) {
+      setProductError("Sign in to research an ASIN.");
+      return;
+    }
+    if (products.some((product) => product.asin.toUpperCase() === searchAsin))
+      return;
 
     let cancelled = false;
 
@@ -387,6 +499,7 @@ const AppWorkspace: React.FC = () => {
         const data = await apiFetchProduct(searchAsin);
         if (cancelled) return;
 
+        window.dispatchEvent(new Event("amzpulse-usage-updated"));
         const nextProduct = normalizeExternalProduct(data, searchAsin);
         setProducts((current) => {
           if (current.some((product) => product.asin === nextProduct.asin)) {
@@ -397,8 +510,8 @@ const AppWorkspace: React.FC = () => {
       } catch (err) {
         if (cancelled) return;
 
-        console.warn('Backend fetch failed', err);
-        setProductError((err as Error)?.message || 'Failed to fetch product');
+        console.warn("Backend fetch failed", err);
+        setProductError((err as Error)?.message || "Failed to fetch product");
       } finally {
         if (!cancelled) {
           setIsFetchingProduct(false);
@@ -411,30 +524,49 @@ const AppWorkspace: React.FC = () => {
     return () => {
       cancelled = true;
     };
-  }, [deferredSearch, products]);
+  }, [deferredSearch, products, token]);
 
   const searchTerm = deferredSearch.toLowerCase();
-  const filteredProducts = useMemo(() => products.filter((product) => {
-    if (currentView === 'watchlist' && !savedIds.has(product.id)) {
-      return false;
-    }
+  const filteredProducts = useMemo(
+    () =>
+      (currentView === "watchlist" ? watchlistProducts : products).filter(
+        (product) => {
+          if (currentView === "watchlist" && !savedIds.has(product.id)) {
+            return false;
+          }
 
-    if (filters.category && product.category !== filters.category) return false;
-    if (filters.subCategory && product.subCategory !== filters.subCategory) return false;
-    if (filters.minPrice > 0 && product.price < filters.minPrice) return false;
-    if (filters.maxPrice > 0 && product.price > filters.maxPrice) return false;
-    if (filters.maxBSR > 0 && product.bsr > filters.maxBSR) return false;
-    if (filters.season && !product.seasonalityTags.includes(filters.season as Product['seasonalityTags'][number])) return false;
+          if (filters.category && product.category !== filters.category)
+            return false;
+          if (
+            filters.subCategory &&
+            product.subCategory !== filters.subCategory
+          )
+            return false;
+          if (filters.minPrice > 0 && product.price < filters.minPrice)
+            return false;
+          if (filters.maxPrice > 0 && product.price > filters.maxPrice)
+            return false;
+          if (filters.maxBSR > 0 && product.bsr > filters.maxBSR) return false;
+          if (
+            filters.season &&
+            !product.seasonalityTags.includes(
+              filters.season as Product["seasonalityTags"][number],
+            )
+          )
+            return false;
 
-    if (!searchTerm) return true;
+          if (!searchTerm) return true;
 
-    return (
-      product.name.toLowerCase().includes(searchTerm) ||
-      product.asin.toLowerCase().includes(searchTerm) ||
-      product.brand.toLowerCase().includes(searchTerm) ||
-      product.category.toLowerCase().includes(searchTerm)
-    );
-  }), [currentView, filters, products, savedIds, searchTerm]);
+          return (
+            product.name.toLowerCase().includes(searchTerm) ||
+            product.asin.toLowerCase().includes(searchTerm) ||
+            product.brand.toLowerCase().includes(searchTerm) ||
+            product.category.toLowerCase().includes(searchTerm)
+          );
+        },
+      ),
+    [currentView, filters, products, watchlistProducts, savedIds, searchTerm],
+  );
 
   const renderAuthPanel = () => (
     <div className="mb-6 flex flex-col gap-3 rounded-2xl border border-slate-800 bg-slate-900/70 p-4 shadow-[0_24px_60px_rgba(2,6,23,0.28)] md:flex-row md:items-center md:justify-between">
@@ -442,16 +574,25 @@ const AppWorkspace: React.FC = () => {
         <Shield size={18} className="text-amz-accent" />
         {token ? (
           <div>
-            <div className="font-semibold text-white">{userEmail || 'Signed in'}</div>
+            <div className="font-semibold text-white">
+              {userEmail || "Signed in"}
+            </div>
             <div className="text-xs text-slate-400">
               {plan.toUpperCase()} plan
-              {usage ? ` • ${usage.asinsAnalyzed}/${planLimits.monthlyAsinQuota} ASINs analyzed this month` : ` • ${planLimits.maxBatchSize} ASIN batch limit`}
+              {usage
+                ? ` • ${usage.asinsAnalyzed}/${planLimits.monthlyAsinQuota} ASINs analyzed this month`
+                : ` • ${planLimits.maxBatchSize} ASIN batch limit`}
             </div>
           </div>
         ) : (
           <div>
-            <div className="font-semibold text-white">Sign in for syncing, billing, and batch analysis</div>
-            <div className="text-xs text-slate-400">Create an account to keep your watchlist and unlock plan-based usage tracking.</div>
+            <div className="font-semibold text-white">
+              Sign in for syncing, billing, and batch analysis
+            </div>
+            <div className="text-xs text-slate-400">
+              Create an account to keep your watchlist and unlock plan-based
+              usage tracking.
+            </div>
           </div>
         )}
       </div>
@@ -459,23 +600,31 @@ const AppWorkspace: React.FC = () => {
       <div className="flex flex-wrap items-center gap-3">
         {token ? (
           <>
-            {canManageBilling && plan !== 'pro' && (
+            {canManageBilling && plan !== "pro" && (
               <button
                 onClick={handleStartCheckout}
                 disabled={billingLoading}
                 className="flex items-center gap-2 rounded-lg bg-amz-accent px-3 py-2 text-sm font-bold text-slate-900 transition hover:bg-orange-500 disabled:cursor-not-allowed disabled:opacity-60"
               >
-                {billingLoading ? <Loader2 size={16} className="animate-spin" /> : <Sparkles size={16} />}
+                {billingLoading ? (
+                  <Loader2 size={16} className="animate-spin" />
+                ) : (
+                  <Sparkles size={16} />
+                )}
                 Upgrade to Pro
               </button>
             )}
-            {canManageBilling && plan === 'pro' && (
+            {canManageBilling && plan === "pro" && (
               <button
                 onClick={handleStartCheckout}
                 disabled={billingLoading}
                 className="flex items-center gap-2 rounded-lg border border-emerald-400/40 bg-emerald-500/10 px-3 py-2 text-sm font-medium text-emerald-200 transition hover:border-emerald-300/60 hover:text-white disabled:cursor-not-allowed disabled:opacity-60"
               >
-                {billingLoading ? <Loader2 size={16} className="animate-spin" /> : <CreditCard size={16} />}
+                {billingLoading ? (
+                  <Loader2 size={16} className="animate-spin" />
+                ) : (
+                  <CreditCard size={16} />
+                )}
                 Manage Billing
               </button>
             )}
@@ -491,7 +640,7 @@ const AppWorkspace: React.FC = () => {
           <>
             <button
               onClick={() => {
-                setAuthMode('login');
+                setAuthMode("login");
                 setShowAuthModal(true);
               }}
               className="flex items-center gap-2 rounded-lg border border-slate-700 bg-slate-800 px-3 py-2 text-sm text-slate-200 transition hover:border-slate-500"
@@ -501,7 +650,7 @@ const AppWorkspace: React.FC = () => {
             </button>
             <button
               onClick={() => {
-                setAuthMode('signup');
+                setAuthMode("signup");
                 setShowAuthModal(true);
               }}
               className="flex items-center gap-2 rounded-lg bg-amz-accent px-3 py-2 text-sm font-bold text-slate-900 transition hover:bg-orange-500"
@@ -516,11 +665,11 @@ const AppWorkspace: React.FC = () => {
   );
 
   const viewSummary =
-    currentView === 'dashboard'
-      ? 'Market overview, trending products, and quick signals.'
-      : currentView === 'watchlist'
-      ? 'Saved opportunities synced to your account.'
-      : 'Deep-dive product research and opportunity analysis.';
+    currentView === "dashboard"
+      ? "Market overview, category bestsellers, and product research."
+      : currentView === "watchlist"
+        ? "Saved opportunities synced to your account."
+        : "Deep-dive product research and opportunity analysis.";
 
   return (
     <div className="min-h-screen bg-slate-950 text-slate-200">
@@ -537,7 +686,10 @@ const AppWorkspace: React.FC = () => {
       <div className="flex min-h-screen flex-col transition-all duration-300 md:ml-64">
         <header className="sticky top-0 z-30 flex items-center justify-between border-b border-slate-800 bg-slate-900/70 p-4 backdrop-blur md:hidden">
           <Tooltip label="Open menu">
-            <button onClick={() => setIsSidebarOpen(true)} className="p-2 text-white">
+            <button
+              onClick={() => setIsSidebarOpen(true)}
+              className="p-2 text-white"
+            >
               <Menu size={24} />
             </button>
           </Tooltip>
@@ -548,26 +700,51 @@ const AppWorkspace: React.FC = () => {
         <main className="flex-1 p-4 md:p-8">
           {renderAuthPanel()}
 
-          {(currentView === 'dashboard' || currentView === 'research' || currentView === 'watchlist') && (
+          {(currentView === "dashboard" ||
+            currentView === "research" ||
+            currentView === "watchlist") && (
             <>
               <div className="mb-6">
-                <h2 className="mb-2 text-3xl font-bold capitalize text-white">{currentView}</h2>
+                <h2 className="mb-2 text-3xl font-bold capitalize text-white">
+                  {currentView}
+                </h2>
                 <p className="text-slate-400">{viewSummary}</p>
+                {currentView === "dashboard" && token && (
+                  <button
+                    disabled={isLoadingTrending || isLoadingBestSellers}
+                    onClick={() =>
+                      window.dispatchEvent(new Event("amzpulse-load-discovery"))
+                    }
+                    className="mt-3 rounded-lg border border-slate-700 px-3 py-2 disabled:opacity-50"
+                  >
+                    Load category products (up to 24 ASIN credits)
+                  </button>
+                )}
               </div>
 
-              {currentView === 'dashboard' && (
+              {currentView === "dashboard" && (
                 <div className="mb-8">
-                  <div className="mb-3 flex items-center justify-between" data-tour="tour-trending">
+                  <div
+                    className="mb-3 flex items-center justify-between"
+                    data-tour="tour-trending"
+                  >
                     <div className="flex items-center gap-2">
                       <Flame size={18} className="text-amz-accent" />
-                      <h3 className="text-lg font-bold text-white">Trending Now</h3>
+                      <h3 className="text-lg font-bold text-white">
+                        Electronics bestsellers
+                      </h3>
                     </div>
-                    {isLoadingTrending && <Loader2 size={14} className="animate-spin text-slate-500" />}
+                    {isLoadingTrending && (
+                      <Loader2
+                        size={14}
+                        className="animate-spin text-slate-500"
+                      />
+                    )}
                   </div>
 
                   {trendingError ? (
                     <div className="rounded-xl border border-slate-800 bg-slate-900/40 px-4 py-3 text-sm text-slate-500">
-                      Trending unavailable: {trendingError}
+                      Electronics bestsellers unavailable: {trendingError}
                     </div>
                   ) : trendingProducts.length > 0 ? (
                     <div className="flex gap-4 overflow-x-auto pb-2">
@@ -585,22 +762,29 @@ const AppWorkspace: React.FC = () => {
                   ) : !isLoadingTrending ? (
                     <EmptyState
                       icon={Flame}
-                      title="No trending data yet"
-                      description="This rail pulls a live Amazon bestsellers category through Rainforest."
-                      tip="Set TRENDING_CATEGORY_URL on the server to pick a category."
+                      title="No category data loaded"
+                      description="Load category bestsellers to discover products. Each load uses up to 24 ASIN credits across both categories."
+                      tip="Sign in and choose Load category products."
                     />
                   ) : null}
                 </div>
               )}
 
-              {currentView === 'dashboard' && (
+              {currentView === "dashboard" && (
                 <div className="mb-8">
                   <div className="mb-3 flex items-center justify-between">
                     <div className="flex items-center gap-2">
                       <Trophy size={18} className="text-amz-accent" />
-                      <h3 className="text-lg font-bold text-white">All-Time Best Sellers</h3>
+                      <h3 className="text-lg font-bold text-white">
+                        Category bestsellers
+                      </h3>
                     </div>
-                    {isLoadingBestSellers && <Loader2 size={14} className="animate-spin text-slate-500" />}
+                    {isLoadingBestSellers && (
+                      <Loader2
+                        size={14}
+                        className="animate-spin text-slate-500"
+                      />
+                    )}
                   </div>
 
                   {bestSellersError ? (
@@ -624,8 +808,8 @@ const AppWorkspace: React.FC = () => {
                     <EmptyState
                       icon={Trophy}
                       title="No best-seller data yet"
-                      description="This rail pulls a live Amazon bestsellers category through Rainforest."
-                      tip="Set BESTSELLERS_CATEGORY_URL on the server to pick a category."
+                      description="Load category bestsellers to discover products. Each load uses up to 24 ASIN credits across both categories."
+                      tip="Sign in and choose Load category products."
                     />
                   ) : null}
                 </div>
@@ -648,7 +832,9 @@ const AppWorkspace: React.FC = () => {
               )}
 
               {productError && (
-                <div className="mt-3 rounded-lg border border-red-500/30 bg-red-500/10 p-3 text-sm text-red-300">{productError}</div>
+                <div className="mt-3 rounded-lg border border-red-500/30 bg-red-500/10 p-3 text-sm text-red-300">
+                  {productError}
+                </div>
               )}
 
               <div className="mt-6">
@@ -664,7 +850,7 @@ const AppWorkspace: React.FC = () => {
                       />
                     ))}
                   </div>
-                ) : currentView === 'watchlist' ? (
+                ) : currentView === "watchlist" ? (
                   <EmptyState
                     icon={Heart}
                     title="Your watchlist is empty"
@@ -672,11 +858,11 @@ const AppWorkspace: React.FC = () => {
                     action={
                       !token
                         ? {
-                            label: 'Login to sync a watchlist',
+                            label: "Login to sync a watchlist",
                             onClick: () => {
-                              setAuthMode('login');
+                              setAuthMode("login");
                               setShowAuthModal(true);
-                            }
+                            },
                           }
                         : undefined
                     }
@@ -685,27 +871,33 @@ const AppWorkspace: React.FC = () => {
                   <EmptyState
                     icon={Search}
                     title="No products yet"
-                    description="Search a live ASIN above, or browse Trending Now and All-Time Best Sellers to get started."
-                    tip="Configure FEATURED_ASINS on the server to seed this view automatically."
+                    description="Search a live ASIN above, or browse Electronics bestsellers and Category bestsellers to get started."
+                    tip="Sign in to research products and save opportunities."
                   />
                 )}
               </div>
             </>
           )}
 
-          {currentView === 'batch' &&
+          {currentView === "batch" &&
             (canUseBatch ? (
               <>
                 <div className="mb-6 rounded-2xl border border-slate-800 bg-slate-900/65 p-4">
-                  <div className="text-sm font-medium text-white">Batch access is enabled for this workspace.</div>
+                  <div className="text-sm font-medium text-white">
+                    Batch access is enabled for this workspace.
+                  </div>
                   <div className="mt-1 text-sm text-slate-400">
-                    Current limit: {planLimits.maxBatchSize} ASINs per run, {planLimits.monthlyAsinQuota} ASINs per month.
+                    Current limit: {planLimits.maxBatchSize} ASINs per run,{" "}
+                    {planLimits.monthlyAsinQuota} ASINs per month.
                   </div>
                 </div>
                 <Suspense
                   fallback={
                     <div className="rounded-xl border border-slate-800 bg-slate-900 p-8 text-center text-slate-300">
-                      <Loader2 className="mx-auto mb-3 animate-spin" size={20} />
+                      <Loader2
+                        className="mx-auto mb-3 animate-spin"
+                        size={20}
+                      />
                       Loading batch analysis...
                     </div>
                   }
@@ -716,18 +908,20 @@ const AppWorkspace: React.FC = () => {
             ) : (
               <div className="space-y-3 rounded-2xl border border-slate-800 bg-slate-900 p-8 text-center">
                 <h3 className="text-2xl font-bold text-white">
-                  {token ? 'Batch access requires an owner or admin seat' : 'Batch analysis requires a signed-in workspace'}
+                  {token
+                    ? "Batch access requires an owner or admin seat"
+                    : "Batch analysis requires a signed-in workspace"}
                 </h3>
                 <p className="text-slate-400">
                   {token
-                    ? 'Ask your workspace owner or admin to run batches, or switch to an account with billing access.'
-                    : 'Sign in to unlock watchlists, usage tracking, and batch runs.'}
+                    ? "Ask your workspace owner or admin to run batches, or switch to an account with billing access."
+                    : "Sign in to unlock watchlists, usage tracking, and batch runs."}
                 </p>
                 <div className="mt-4 flex justify-center gap-3">
                   {!token && (
                     <button
                       onClick={() => {
-                        setAuthMode('login');
+                        setAuthMode("login");
                         setShowAuthModal(true);
                       }}
                       className="rounded-lg bg-amz-accent px-4 py-2 font-bold text-slate-900 hover:bg-orange-500"
@@ -737,7 +931,7 @@ const AppWorkspace: React.FC = () => {
                   )}
                   {token && !canManageBilling && (
                     <button
-                      onClick={() => setView('dashboard')}
+                      onClick={() => setView("dashboard")}
                       className="rounded-lg border border-slate-700 px-4 py-2 text-slate-200 hover:border-slate-500"
                     >
                       Back to dashboard
@@ -747,32 +941,43 @@ const AppWorkspace: React.FC = () => {
               </div>
             ))}
 
-          {currentView === 'referrals' && (
+          {currentView === "referrals" && (
             <div className="mx-auto max-w-2xl">
               <div className="rounded-2xl border border-slate-800 bg-slate-900 p-8">
                 <div className="mb-4 inline-flex rounded-full bg-amz-accent/15 p-3 text-amz-accent">
                   <Share2 size={22} />
                 </div>
-                <h2 className="text-2xl font-bold text-white">Invite your team</h2>
+                <h2 className="text-2xl font-bold text-white">
+                  Invite your team
+                </h2>
                 <p className="mt-2 text-sm text-slate-400">
-                  Share your personal invite link. Anyone who signs up through it starts their own workspace.
+                  Share your personal invite link. Anyone who signs up through
+                  it starts their own workspace.
                 </p>
 
                 {token ? (
                   <>
                     <div className="mt-6 flex items-center gap-2 rounded-xl border border-slate-700 bg-slate-950/60 p-3">
-                      <code className="flex-1 truncate text-sm text-slate-300">{referralLink}</code>
+                      <code className="flex-1 truncate text-sm text-slate-300">
+                        {referralLink}
+                      </code>
                       <button
                         onClick={copyReferralLink}
                         className="flex shrink-0 items-center gap-1.5 rounded-lg bg-amz-accent px-3 py-2 text-xs font-bold text-slate-900 transition hover:bg-orange-500"
                       >
-                        {referralLinkCopied ? <Check size={14} /> : <Copy size={14} />}
-                        {referralLinkCopied ? 'Copied' : 'Copy'}
+                        {referralLinkCopied ? (
+                          <Check size={14} />
+                        ) : (
+                          <Copy size={14} />
+                        )}
+                        {referralLinkCopied ? "Copied" : "Copy"}
                       </button>
                     </div>
                     <p className="mt-3 text-xs text-slate-500">
-                      Invite tracking and reward crediting aren&apos;t wired up on the backend yet — this link is ready to
-                      share, but signups through it won&apos;t be credited to you automatically until that ships.
+                      Invite tracking and reward crediting aren&apos;t wired up
+                      on the backend yet — this link is ready to share, but
+                      signups through it won&apos;t be credited to you
+                      automatically until that ships.
                     </p>
                   </>
                 ) : (
@@ -782,11 +987,11 @@ const AppWorkspace: React.FC = () => {
                       title="Sign in to get your invite link"
                       description="Each workspace account gets its own shareable referral link."
                       action={{
-                        label: 'Login',
+                        label: "Login",
                         onClick: () => {
-                          setAuthMode('login');
+                          setAuthMode("login");
                           setShowAuthModal(true);
-                        }
+                        },
                       }}
                     />
                   </div>
@@ -795,7 +1000,7 @@ const AppWorkspace: React.FC = () => {
             </div>
           )}
 
-          {currentView === 'rewards' && (
+          {currentView === "rewards" && (
             <div className="mx-auto max-w-2xl">
               <EmptyState
                 icon={Gift}
@@ -807,26 +1012,31 @@ const AppWorkspace: React.FC = () => {
             </div>
           )}
 
-          {currentView === 'settings' && (
+          {currentView === "settings" && (
             <div className="mx-auto max-w-2xl rounded-2xl border border-slate-800 bg-slate-900 p-8">
               <h2 className="mb-6 text-2xl font-bold text-white">Settings</h2>
               <div className="space-y-4">
                 <div className="flex items-center justify-between rounded-xl bg-slate-800 p-4">
                   <span>Workspace Plan</span>
-                  <span className="font-bold text-amz-accent">{plan.toUpperCase()}</span>
+                  <span className="font-bold text-amz-accent">
+                    {plan.toUpperCase()}
+                  </span>
                 </div>
                 <div className="flex items-center justify-between rounded-xl bg-slate-800 p-4">
                   <span>Monthly Quota</span>
-                  <span className="font-bold text-amz-accent">{planLimits.monthlyAsinQuota.toLocaleString()} ASINs</span>
+                  <span className="font-bold text-amz-accent">
+                    {planLimits.monthlyAsinQuota.toLocaleString()} ASINs
+                  </span>
                 </div>
                 <div className="flex items-center justify-between rounded-xl bg-slate-800 p-4">
                   <span>Max Batch Size</span>
-                  <span className="font-bold text-amz-accent">{planLimits.maxBatchSize} ASINs</span>
+                  <span className="font-bold text-amz-accent">
+                    {planLimits.maxBatchSize} ASINs
+                  </span>
                 </div>
               </div>
             </div>
           )}
-
         </main>
       </div>
 
@@ -874,7 +1084,10 @@ const AppWorkspace: React.FC = () => {
         </Suspense>
       )}
 
-      <OnboardingTour isOpen={isTourOpen} onClose={() => setIsTourOpen(false)} />
+      <OnboardingTour
+        isOpen={isTourOpen}
+        onClose={() => setIsTourOpen(false)}
+      />
     </div>
   );
 };
