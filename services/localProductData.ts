@@ -4,7 +4,7 @@
 // for them to round-trip through, so localStorage is the real persistence layer, not a
 // placeholder for one.
 export interface ProductUserData {
-  fulfillmentMode?: 'FBA' | 'FBM';
+  fulfillmentMode?: "FBA" | "FBM";
   salePrice?: number;
   buyCost?: number;
   prepCost?: number;
@@ -14,16 +14,27 @@ export interface ProductUserData {
   targetRoi?: number;
   notes?: string;
   updatedAt?: string;
+  referralFee?: number | null;
+  fbaFee?: number | null;
+  storageFee?: number | null;
 }
 
-const STORAGE_KEY = 'amzpulse_product_data';
+let scope = "guest";
+export const setProductDataScope = (identity: string | null) => {
+  scope = identity || "guest";
+};
+const storageKey = () =>
+  `amzpulse_product_data_v2:${encodeURIComponent(scope)}`;
 
 type Store = Record<string, ProductUserData>;
 
 const readStore = (): Store => {
   try {
-    const raw = localStorage.getItem(STORAGE_KEY);
-    return raw ? (JSON.parse(raw) as Store) : {};
+    const raw = localStorage.getItem(storageKey());
+    const parsed = raw ? JSON.parse(raw) : {};
+    return parsed && typeof parsed === "object" && !Array.isArray(parsed)
+      ? parsed
+      : {};
   } catch {
     return {};
   }
@@ -31,9 +42,9 @@ const readStore = (): Store => {
 
 const writeStore = (store: Store) => {
   try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(store));
+    localStorage.setItem(storageKey(), JSON.stringify(store));
   } catch (err) {
-    console.warn('Failed to save product data locally', err);
+    console.warn("Failed to save product data locally", err);
   }
 };
 
@@ -42,7 +53,10 @@ export const getProductUserData = (asin: string): ProductUserData => {
   return readStore()[asin.toUpperCase()] || {};
 };
 
-export const saveProductUserData = (asin: string, patch: Partial<ProductUserData>) => {
+export const saveProductUserData = (
+  asin: string,
+  patch: Partial<ProductUserData>,
+) => {
   if (!asin) return;
   const store = readStore();
   const key = asin.toUpperCase();
@@ -61,5 +75,10 @@ export const clearProductUserData = (asin: string) => {
 // already tracked sourcing info for.
 export const hasProductUserData = (asin: string): boolean => {
   const data = getProductUserData(asin);
-  return Boolean(data.notes?.trim() || data.supplierUrl?.trim() || data.targetRoi || data.buyCost);
+  return Boolean(
+    data.notes?.trim() ||
+    data.supplierUrl?.trim() ||
+    data.targetRoi ||
+    data.buyCost,
+  );
 };
