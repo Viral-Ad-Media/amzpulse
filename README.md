@@ -6,7 +6,7 @@ AmzPulse is a React and TypeScript workspace for Amazon US product research, sav
 
 Use Node.js 22 or newer.
 
-1. Set up and start the backend using its README, including the Supabase migrations.
+1. Set up and start the backend using its README, including the Neon migrations and Better Auth configuration.
 2. Install this frontend and copy its environment template:
 
    ```sh
@@ -33,7 +33,7 @@ On Vercel, you may leave both build-time API base settings empty and set `AMZPUL
 
 Direct browser-to-backend requests are recommended: the backend can rate-limit each client's IP. A gateway shares backend IP limits across clients, so account for gateway traffic when setting backend limits and host function timeouts. Large batches may take several minutes; a gateway host with a shorter execution limit should use direct API mode.
 
-Keep Supabase service-role, Stripe, Amazon, Keepa, Rainforest, Resend, and Gemini secrets exclusively in the backend. Never use a `VITE_` prefix for a secret; those variables are public browser configuration. Existing frontend provider credentials must be moved to the backend.
+Keep Neon database URLs, Better Auth, Stripe, Amazon, Keepa, Rainforest, Resend, and Gemini secrets exclusively in the backend. Never use a `VITE_` prefix for a secret; those variables are public browser configuration. Existing frontend provider credentials must be moved to the backend.
 
 ## Research behavior
 
@@ -66,4 +66,8 @@ GitHub Actions runs the type check, regression tests, production build, and depe
 
 ## Audit remediation rollout
 
-Use the frontend and backend audit-remediation branches together. Apply the backend security migration before starting the updated API; it adds session versioning, private database access, canonical product payloads, and transactional usage functions. Configure Redis, reset email delivery, billing, and the chosen data provider as described in the backend README. Existing sessions must sign in again. These code changes do not themselves deploy services, apply production migrations, or verify live credentials.
+Use the frontend and backend audit-remediation branches together. Run the backend Neon migrations before starting the updated API; they create private application/auth tables and transactional usage functions. Import existing records before switching production. Configure Redis, reset email delivery, billing, and the chosen data provider as described in the backend README. Existing sessions must sign in again. These code changes do not themselves deploy services, apply production migrations, or verify live credentials.
+
+## Neon authentication rollout
+
+The paired backend branch uses Neon Postgres and Better Auth. Frontend requests keep the `/api/auth/*` contract, with opaque revocable session tokens replacing custom JWTs. Local notes are scoped from the verified `/me` response, and Logout requests server-side session revocation before clearing browser state. New passwords require at least 12 characters. Set the frontend `VITE_API_BASE` to the backend origin at build time; set the backend `BETTER_AUTH_URL` to that same backend origin and `FRONTEND_URL` to this frontend's HTTPS URL. Keep all database/auth secrets on the backend. Existing sessions must sign in again after deployment. OAuth, MFA and passkeys are not configured by this migration.

@@ -109,21 +109,22 @@ let authToken: string | null = null;
 
 export const setAuthToken = (token: string | null) => {
   authToken = token;
-  let scope: string | null = null;
-  if (token)
-    try {
-      const payload = JSON.parse(
-        atob(token.split(".")[1].replace(/-/g, "+").replace(/_/g, "/")),
-      );
-      if (typeof payload.sub === "string" && typeof payload.orgId === "string")
-        scope = JSON.stringify([payload.sub, payload.orgId]);
-    } catch {}
-  setProductDataScope(scope);
+  setProductDataScope(null);
   if (token) {
     localStorage.setItem("amzpulse_token", token);
   } else {
     localStorage.removeItem("amzpulse_token");
   }
+};
+
+export const setSessionIdentity = (profile: SessionProfile) => {
+  const user = profile.user?.id,
+    org = profile.organizationId;
+  setProductDataScope(
+    typeof user === "string" && typeof org === "string"
+      ? JSON.stringify([user, org])
+      : null,
+  );
 };
 
 const buildHeaders = (extra?: Record<string, string>) => {
@@ -316,4 +317,12 @@ export async function removeFromWatchlist(idOrAsin: string) {
     },
   );
   await handle<null>(resp, "Remove from watchlist failed");
+}
+
+export async function logout() {
+  const response = await apiFetch(`${API_BASE}/api/auth/logout`, {
+    method: "POST",
+    headers: buildHeaders(),
+  });
+  return handle<void>(response, "Unable to revoke session");
 }
