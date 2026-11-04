@@ -33,6 +33,8 @@ vi.mock("../services/apiClient", () => ({
   })),
   getUsage: vi.fn(async () => ({ asinsAnalyzed: 0, plan: "free" })),
   setAuthToken: vi.fn(),
+  setSessionIdentity: vi.fn(),
+  logout: vi.fn(async () => {}),
   addToWatchlist: vi.fn(),
   createCheckoutSession: vi.fn(),
   fetchProduct: vi.fn(),

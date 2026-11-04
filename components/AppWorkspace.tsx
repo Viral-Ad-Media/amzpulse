@@ -47,6 +47,8 @@ import {
   getWatchlist,
   login,
   me,
+  logout as apiLogout,
+  setSessionIdentity,
   register,
   removeFromWatchlist,
   setAuthToken as setApiAuthToken,
@@ -73,6 +75,7 @@ const AppWorkspace: React.FC = () => {
   const [products, setProducts] = useState<Product[]>([]);
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
   const sessionGeneration = useRef(0);
+  const pendingWatchlist = useRef(new Set<string>());
   const [watchlistProducts, setWatchlistProducts] = useState<Product[]>([]);
   const [savedIds, setSavedIds] = useState<Set<string>>(new Set());
   const [watchlistMap, setWatchlistMap] = useState<Record<string, string>>({});
@@ -298,6 +301,7 @@ const AppWorkspace: React.FC = () => {
     try {
       const profile = await me();
       if (generation !== sessionGeneration.current) return;
+      setSessionIdentity(profile);
       setUserEmail(profile.user?.email || "");
       setPlan(profile.plan || "free");
       setRole(profile.role);
@@ -368,6 +372,7 @@ const AppWorkspace: React.FC = () => {
   };
 
   const handleLogout = () => {
+    void apiLogout().catch(() => {});
     sessionGeneration.current++;
     setWatchlistProducts([]);
     setSelectedProduct(null);
@@ -429,11 +434,16 @@ const AppWorkspace: React.FC = () => {
       return;
     }
 
+    const generation = sessionGeneration.current;
+    const mutationKey = `${generation}:${productId}`;
+    if (pendingWatchlist.current.has(mutationKey)) return;
+    pendingWatchlist.current.add(mutationKey);
     const isSaved = savedIds.has(productId);
     try {
       if (isSaved) {
         const watchId = watchlistMap[productId] || productId;
         await removeFromWatchlist(watchId);
+        if (generation !== sessionGeneration.current) return;
 
         setWatchlistProducts((current) =>
           current.filter((p) => p.id !== productId),
@@ -451,6 +461,7 @@ const AppWorkspace: React.FC = () => {
         });
       } else {
         const result = await addToWatchlist(productId);
+        if (generation !== sessionGeneration.current) return;
         const savedProduct =
           [...products, ...trendingProducts, ...bestSellerProducts].find(
             (p) => p.id === productId,
@@ -476,7 +487,10 @@ const AppWorkspace: React.FC = () => {
         }
       }
     } catch (err) {
-      setProductError((err as Error).message || "Unable to update watchlist");
+      if (generation === sessionGeneration.current)
+        setProductError((err as Error).message || "Unable to update watchlist");
+    } finally {
+      pendingWatchlist.current.delete(mutationKey);
     }
   };
 

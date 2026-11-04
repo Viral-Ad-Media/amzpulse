@@ -66,8 +66,8 @@ const PasswordRecoveryPanel: React.FC<PasswordRecoveryPanelProps> = ({
       );
       return;
     }
-    if (password.length < 8) {
-      setError("Password must be at least 8 characters.");
+    if (password.length < 12) {
+      setError("Password must be at least 12 characters.");
       return;
     }
     if (password !== confirmPassword) {
@@ -162,7 +162,7 @@ const PasswordRecoveryPanel: React.FC<PasswordRecoveryPanelProps> = ({
                   value={password}
                   onChange={(event) => setPassword(event.target.value)}
                   className="w-full rounded-xl border border-slate-700 bg-slate-900/80 py-3 pl-4 pr-11 text-sm text-white outline-none transition focus:border-amz-accent"
-                  placeholder="At least 8 characters"
+                  placeholder="At least 12 characters"
                 />
                 <button
                   type="button"
